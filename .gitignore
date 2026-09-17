@@ -20,6 +20,7 @@ poetry.toml
 # Editors and notebooks
 .vscode/
 .idea/
+notebooks/
 .ipynb_checkpoints/
 
 # ML data and generated artifacts
