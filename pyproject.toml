@@ -1,0 +1,39 @@
+[project]
+name = "transformers-from-first-principles"
+version = "0.1.0"
+description = "A decoder-only Transformer implemented manually in PyTorch."
+readme = "README.md"
+requires-python = ">=3.12,<4.0"
+dependencies = [
+    "torch",
+    "numpy",
+    "matplotlib",
+    "datasets (>=5.0.1,<6.0.0)",
+    "tokenizers (>=0.23.2,<0.24.0)",
+    "tensorflow (>=2.21.0,<3.0.0)",
+    "scikit-learn (>=1.9.1,<2.0.0)",
+]
+
+[tool.poetry]
+packages = [{ include = "transformers_from_scratch", from = "src" }]
+
+[tool.poetry.group.dev.dependencies]
+pytest = "*"
+ruff = "*"
+jupyterlab = "^4.6.3"
+ipywidgets = "^8.1.9"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[build-system]
+requires = ["poetry-core>=1.9.0"]
+build-backend = "poetry.core.masonry.api"
