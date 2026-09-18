@@ -114,3 +114,19 @@ poetry run python generate.py \
   --checkpoint checkpoints/tinystories-2k.pt \
   --prompt "Once upon a time" --max-new-tokens 100 --temperature 0.8 --top-k 50
 ```
+
+## Checkpoint and resume
+
+Training saves atomic periodic checkpoints in `checkpoints/`; the directory is ignored by Git.
+
+```bash
+poetry run python train.py --config configs/tiny.yaml
+
+poetry run python train.py \
+  --config configs/tiny.yaml \
+  --resume checkpoints/step-001000.pt
+```
+
+Resume restores model weights, AdamW optimizer moments, global step, and global RNG
+state. It does not restore the active shuffled DataLoader iterator position, so
+exact bit-for-bit continuation of batch order is not guaranteed.

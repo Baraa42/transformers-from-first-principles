@@ -7,6 +7,7 @@ from pathlib import Path
 
 import torch
 
+from transformers_from_scratch.checkpointing import load_checkpoint, save_checkpoint
 from transformers_from_scratch.data import (
     create_dataloaders,
     load_tinystories_text_splits,
@@ -27,6 +28,7 @@ from transformers_from_scratch.training import (
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", required=True, help="Path to a YAML config")
+    parser.add_argument("--resume", default=None, help="Path to checkpoint to resume from")
     return parser.parse_args()
 
 
@@ -70,11 +72,47 @@ def main() -> None:
         lr=training_config["learning_rate"],
         weight_decay=training_config["weight_decay"],
     )
+    start_step = 0
+    if args.resume is not None:
+        checkpoint = load_checkpoint(
+            args.resume,
+            model=model,
+            optimizer=optimizer,
+            device=device,
+            model_config=model_config,
+            vocab_size=tokenizer.get_vocab_size(),
+            tokenizer_repo=data_config["tokenizer_repo"],
+        )
+        start_step = checkpoint["step"]
+        print(f"resuming_from={args.resume}")
+        print(f"start_step={start_step}")
+    target_step = training_config["steps"]
+    if start_step >= target_step:
+        raise ValueError("Checkpoint step is already at or beyond training.steps")
+
+    checkpoint_dir = Path(training_config["checkpoint_dir"])
+    checkpoint_interval = training_config["checkpoint_interval"]
+    if checkpoint_interval < 1:
+        raise ValueError("checkpoint_interval must be positive")
+
+    def write_checkpoint(step: int) -> Path:
+        path = checkpoint_dir / f"step-{step:06d}.pt"
+        return save_checkpoint(
+            path,
+            step=step,
+            model=model,
+            optimizer=optimizer,
+            model_config=model_config,
+            vocab_size=tokenizer.get_vocab_size(),
+            tokenizer_repo=data_config["tokenizer_repo"],
+            config=config,
+        )
+
     batches = cycle(train_loader)
     log_start = time.perf_counter()
     log_tokens = 0
 
-    for step in range(1, training_config["steps"] + 1):
+    for step in range(start_step + 1, target_step + 1):
         model.train()
         input_ids, targets = next(batches)
         input_ids, targets = input_ids.to(device), targets.to(device)
@@ -101,22 +139,10 @@ def main() -> None:
                 f"step={step} val_loss={metrics['loss']:.4f} "
                 f"val_perplexity={metrics['perplexity']:.2f}"
             )
+        if step % checkpoint_interval == 0:
+            print(f"checkpoint={write_checkpoint(step)}")
 
-    checkpoint_path = Path(training_config["checkpoint_path"])
-    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(
-        {
-            "step": training_config["steps"],
-            "model_state_dict": model.state_dict(),
-            "optimizer_state_dict": optimizer.state_dict(),
-            "model_config": model_config,
-            "vocab_size": tokenizer.get_vocab_size(),
-            "tokenizer_repo": data_config["tokenizer_repo"],
-            "config": config,
-        },
-        checkpoint_path,
-    )
-    print(f"checkpoint={checkpoint_path}")
+    print(f"checkpoint={write_checkpoint(target_step)}")
 
 
 if __name__ == "__main__":
