@@ -69,6 +69,13 @@ def clip_or_measure_grad_norm(model: torch.nn.Module, max_grad_norm: float | Non
     return torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=max_grad_norm).item()
 
 
+def validate_grad_accum_steps(value: object) -> int:
+    """Validate and return the number of microbatches per optimizer update."""
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ValueError("grad_accum_steps must be an integer >= 1")
+    return value
+
+
 def set_seed(seed: int) -> None:
     """Seed common PRNGs; bitwise cross-device determinism is not guaranteed."""
     random.seed(seed)

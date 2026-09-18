@@ -22,6 +22,7 @@ from transformers_from_scratch.training import (
     load_config,
     resolve_device,
     set_seed,
+    validate_grad_accum_steps,
 )
 
 
@@ -89,6 +90,7 @@ def main() -> None:
     if max_grad_norm is not None and max_grad_norm <= 0:
         raise ValueError("max_grad_norm must be strictly positive or null")
 
+    grad_accum_steps = validate_grad_accum_steps(training_config.get("grad_accum_steps", 1))
     # 8. Load/tokenize data only after resume compatibility and RNG restoration succeed.
     train_text, val_text = load_tinystories_text_splits(
         data_config["dataset_name"], data_config["train_stories"], data_config["val_stories"]
@@ -130,34 +132,36 @@ def main() -> None:
 
     # 11. Run steps start_step + 1 through target_step, inclusive.
     for step in range(start_step + 1, target_step + 1):
-        # 11.1 Fetch one causal-LM batch: inputs and next-token targets are (B, T).
+        # 11.1 Each outer-loop iteration is one optimizer/global step.
         model.train()
-        input_ids, targets = next(batches)
-
-        # 11.2 Put the token IDs on the same device as the model parameters.
-        input_ids, targets = input_ids.to(device), targets.to(device)
-
-        # 11.3 Forward pass: logits are (B, T, V), then CE reduces them to one loss.
-        logits = model(input_ids)
-        loss = causal_lm_loss(logits, targets)
-
-        # 11.4 Clear old gradients, backpropagate, then measure/optionally clip globally.
         optimizer.zero_grad()
-        loss.backward()
+
+        # 11.2 Accumulate scaled gradients from N microbatches without zeroing between them.
+        step_loss = 0.0
+        for _ in range(grad_accum_steps):
+            input_ids, targets = next(batches)
+            input_ids, targets = input_ids.to(device), targets.to(device)
+
+            # 11.3 Forward pass: logits are (B, T, V), then CE reduces them to one loss.
+            loss = causal_lm_loss(model(input_ids), targets)
+            step_loss += loss.item()
+            (loss / grad_accum_steps).backward()
+            log_tokens += input_ids.numel()
+
+        # 11.4 Measure/clip the final accumulated gradient once, before the update.
         grad_norm = clip_or_measure_grad_norm(model, max_grad_norm)
         grad_clipped = max_grad_norm is not None and grad_norm > max_grad_norm
 
         # 11.5 AdamW reads the (possibly clipped) gradients and updates weights in place.
         optimizer.step()
 
-        # 11.6 Count tokens and log interval-level throughput when requested.
-        log_tokens += input_ids.numel()
+        # 11.6 Log mean unscaled microbatch loss and all processed input tokens.
         if step % training_config["log_interval"] == 0:
             synchronize_if_cuda(device)
             elapsed = time.perf_counter() - log_start
             lr = optimizer.param_groups[0]["lr"]
             print(
-                f"step={step} train_loss={loss.item():.4f} lr={lr:.2e} "
+                f"step={step} train_loss={step_loss / grad_accum_steps:.4f} lr={lr:.2e} "
                 f"grad_norm={grad_norm:.4f} grad_clipped={grad_clipped} "
                 f"tokens_per_sec={log_tokens / elapsed:.0f}"
             )
