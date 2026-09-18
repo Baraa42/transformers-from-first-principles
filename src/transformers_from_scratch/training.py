@@ -39,19 +39,23 @@ def evaluate(
     """Return average validation loss/perplexity and restore the model's mode."""
     was_training = model.training
     model.eval()
-    losses: list[float] = []
+    total_loss = 0.0
+    total_tokens = 0
     try:
         with torch.inference_mode():
             for batch_index, (input_ids, targets) in enumerate(loader):
                 if max_batches is not None and batch_index >= max_batches:
                     break
-                loss = causal_lm_loss(model(input_ids.to(device)), targets.to(device))
-                losses.append(loss.item())
+                input_ids, targets = input_ids.to(device), targets.to(device)
+                loss = causal_lm_loss(model(input_ids), targets)
+                n_tokens = targets.numel()
+                total_loss += loss.item() * n_tokens
+                total_tokens += n_tokens
     finally:
         model.train(was_training)
-    if not losses:
+    if total_tokens == 0:
         raise ValueError("Validation loader produced no batches")
-    loss = sum(losses) / len(losses)
+    loss = total_loss / total_tokens
     perplexity = math.exp(loss) if loss < math.log(sys.float_info.max) else math.inf
     return {"loss": loss, "perplexity": perplexity}
 

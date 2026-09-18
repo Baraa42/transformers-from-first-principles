@@ -171,3 +171,37 @@ def test_infinite_batches_starts_a_fresh_iteration_after_each_epoch() -> None:
         "epoch-2-second",
     ]
     assert loader.iterations == 2
+
+
+def test_evaluate_weights_unequal_batches_by_target_tokens() -> None:
+    class LookupLogits(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.register_buffer("table", torch.tensor([[2.0, 0.0], [0.0, 2.0], [0.0, 0.0]]))
+
+        def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
+            return self.table[input_ids]
+
+    model = LookupLogits()
+    loader = DataLoader(
+        TensorDataset(
+            torch.tensor([[0], [1], [2]]),
+            torch.tensor([[0], [1], [0]]),
+        ),
+        batch_size=2,
+        drop_last=False,
+    )
+    batch_losses: list[float] = []
+    batch_tokens: list[int] = []
+    for input_ids, targets in loader:
+        batch_losses.append(causal_lm_loss(model(input_ids), targets).item())
+        batch_tokens.append(targets.numel())
+
+    expected = sum(loss * tokens for loss, tokens in zip(batch_losses, batch_tokens)) / sum(
+        batch_tokens
+    )
+    naive_mean = sum(batch_losses) / len(batch_losses)
+    metrics = evaluate(model, loader, torch.device("cpu"))
+
+    assert metrics["loss"] == pytest.approx(expected)
+    assert metrics["loss"] != pytest.approx(naive_mean)
