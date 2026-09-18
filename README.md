@@ -130,3 +130,5 @@ poetry run python train.py \
 Resume restores model weights, AdamW optimizer moments, global step, and global RNG
 state. It does not restore the active shuffled DataLoader iterator position, so
 exact bit-for-bit continuation of batch order is not guaranteed.
+
+On resume, `optimizer.load_state_dict(...)` restores AdamW parameter-group state, including the saved learning rate and weight decay. For a true resume, those checkpoint settings take precedence over newly specified YAML optimizer values.

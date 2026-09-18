@@ -142,7 +142,8 @@ def main() -> None:
         if step % checkpoint_interval == 0:
             print(f"checkpoint={write_checkpoint(step)}")
 
-    print(f"checkpoint={write_checkpoint(target_step)}")
+    if target_step % checkpoint_interval != 0:
+        print(f"checkpoint={write_checkpoint(target_step)}")
 
 
 if __name__ == "__main__":

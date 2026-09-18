@@ -1,6 +1,7 @@
 import random
 
 import numpy as np
+import pytest
 import torch
 
 from transformers_from_scratch.checkpointing import load_checkpoint, save_checkpoint
@@ -93,3 +94,19 @@ def test_checkpoint_restores_rng_state(tmp_path) -> None:
 
 def test_resume_uses_next_global_step_through_target() -> None:
     assert list(range(20 + 1, 30 + 1)) == list(range(21, 31))
+
+
+@pytest.mark.skipif(not torch.backends.mps.is_available(), reason="MPS is unavailable")
+def test_checkpoint_restores_mps_rng_state(tmp_path) -> None:
+    torch.mps.manual_seed(19)
+    model, optimizer = make_model_and_optimizer()
+    path = tmp_path / "mps-rng.pt"
+    save_test_checkpoint(path, model, optimizer)
+    expected = torch.rand(3, device="mps")
+    torch.rand(3, device="mps")
+
+    restored_model, restored_optimizer = make_model_and_optimizer()
+    load_test_checkpoint(path, restored_model, restored_optimizer)
+    actual = torch.rand(3, device="mps")
+
+    assert torch.equal(actual.cpu(), expected.cpu())

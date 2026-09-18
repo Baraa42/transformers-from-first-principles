@@ -16,6 +16,7 @@ def capture_rng_state() -> dict[str, Any]:
         "numpy": np.random.get_state(),
         "torch": torch.get_rng_state(),
         "cuda": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None,
+        "mps": torch.mps.get_rng_state() if torch.backends.mps.is_available() else None,
     }
 
 
@@ -24,8 +25,12 @@ def restore_rng_state(state: dict[str, Any]) -> None:
     random.setstate(state["python"])
     np.random.set_state(state["numpy"])
     torch.set_rng_state(state["torch"])
-    if state["cuda"] is not None and torch.cuda.is_available():
-        torch.cuda.set_rng_state_all(state["cuda"])
+    cuda_state = state.get("cuda")
+    if cuda_state is not None and torch.cuda.is_available():
+        torch.cuda.set_rng_state_all(cuda_state)
+    mps_state = state.get("mps")
+    if mps_state is not None and torch.backends.mps.is_available():
+        torch.mps.set_rng_state(mps_state)
 
 
 def save_checkpoint(
