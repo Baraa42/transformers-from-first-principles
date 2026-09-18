@@ -2,7 +2,6 @@
 
 import argparse
 import time
-from itertools import cycle
 from pathlib import Path
 
 import torch
@@ -19,6 +18,7 @@ from transformers_from_scratch.training import (
     causal_lm_loss,
     clip_or_measure_grad_norm,
     evaluate,
+    infinite_batches,
     load_config,
     resolve_device,
     set_seed,
@@ -126,7 +126,7 @@ def main() -> None:
 
     # 10. Create the training-batch iterator and counters used for interval metrics.
     # A new iterator after resume does not restore its old shuffle position.
-    batches = cycle(train_loader)
+    batches = infinite_batches(train_loader)
     log_start = time.perf_counter()
     log_tokens = 0
 

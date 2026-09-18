@@ -11,6 +11,7 @@ from transformers_from_scratch.training import (
     clip_or_measure_grad_norm,
     evaluate,
     global_grad_norm,
+    infinite_batches,
     validate_grad_accum_steps,
 )
 
@@ -147,3 +148,26 @@ def test_gradient_clipping_runs_after_accumulation() -> None:
 
     assert pre_clip_norm == pytest.approx(2.0)
     assert global_grad_norm(model) == pytest.approx(1.0)
+
+
+class EpochIterable:
+    def __init__(self) -> None:
+        self.iterations = 0
+
+    def __iter__(self):
+        self.iterations += 1
+        yield f"epoch-{self.iterations}-first"
+        yield f"epoch-{self.iterations}-second"
+
+
+def test_infinite_batches_starts_a_fresh_iteration_after_each_epoch() -> None:
+    loader = EpochIterable()
+    batches = infinite_batches(loader)
+
+    assert [next(batches) for _ in range(4)] == [
+        "epoch-1-first",
+        "epoch-1-second",
+        "epoch-2-first",
+        "epoch-2-second",
+    ]
+    assert loader.iterations == 2

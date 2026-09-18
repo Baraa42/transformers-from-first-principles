@@ -3,7 +3,7 @@
 import math
 import random
 import sys
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +22,12 @@ def causal_lm_loss(logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
     if targets.dtype != torch.long:
         raise ValueError("targets must have torch.long dtype")
     return F.cross_entropy(logits.reshape(-1, logits.shape[-1]), targets.reshape(-1))
+
+
+def infinite_batches(loader: Iterable[Any]) -> Iterator[Any]:
+    """Yield loader batches forever, recreating its iterator after each epoch."""
+    while True:
+        yield from loader
 
 
 def evaluate(

@@ -87,6 +87,16 @@ def create_dataloaders(
     """Create shuffled training and ordered validation loaders."""
     options = {"batch_size": batch_size, "num_workers": num_workers, "pin_memory": pin_memory}
     return (
-        DataLoader(CausalWindowDataset(train_stories, context_length), shuffle=True, **options),
-        DataLoader(CausalWindowDataset(val_stories, context_length), shuffle=False, **options),
+        DataLoader(
+            CausalWindowDataset(train_stories, context_length),
+            shuffle=True,
+            drop_last=True,
+            **options,
+        ),
+        DataLoader(
+            CausalWindowDataset(val_stories, context_length),
+            shuffle=False,
+            drop_last=False,
+            **options,
+        ),
     )

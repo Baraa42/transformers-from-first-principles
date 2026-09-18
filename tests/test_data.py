@@ -53,3 +53,25 @@ def test_dataloader_batches_are_two_dimensional() -> None:
     val_inputs, val_targets = next(iter(val_loader))
     assert inputs.shape == targets.shape == (2, 4)
     assert val_inputs.shape == val_targets.shape == (1, 4)
+
+
+def test_training_loader_drops_an_incomplete_batch() -> None:
+    train_loader, _ = create_dataloaders(
+        [[0, 1, 2, 3, 4, 5]],
+        [[0, 1, 2, 3, 4, 5]],
+        context_length=1,
+        batch_size=2,
+    )
+
+    assert [inputs.shape[0] for inputs, _ in train_loader] == [2, 2]
+
+
+def test_validation_loader_keeps_an_incomplete_batch() -> None:
+    _, val_loader = create_dataloaders(
+        [[0, 1, 2, 3, 4, 5]],
+        [[0, 1, 2, 3, 4, 5]],
+        context_length=1,
+        batch_size=2,
+    )
+
+    assert [inputs.shape[0] for inputs, _ in val_loader] == [2, 2, 1]
