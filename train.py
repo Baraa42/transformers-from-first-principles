@@ -66,12 +66,14 @@ def main() -> None:
             "No full causal windows were created; reduce context length or load more data"
         )
 
+    # Build fresh objects first. A resume below replaces their saved state.
     model = TinyDecoderLM(vocab_size=tokenizer.get_vocab_size(), **model_config).to(device)
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=training_config["learning_rate"],
         weight_decay=training_config["weight_decay"],
     )
+    # Fresh runs start at global step 0. Resumed runs continue at N + 1.
     start_step = 0
     if args.resume is not None:
         checkpoint = load_checkpoint(
@@ -86,6 +88,7 @@ def main() -> None:
         start_step = checkpoint["step"]
         print(f"resuming_from={args.resume}")
         print(f"start_step={start_step}")
+    # ``steps`` is the desired final global step, not an additional-step count.
     target_step = training_config["steps"]
     if start_step >= target_step:
         raise ValueError("Checkpoint step is already at or beyond training.steps")
@@ -108,21 +111,33 @@ def main() -> None:
             config=config,
         )
 
+    # Keep requesting batches until the configured global target is reached.
+    # A newly created iterator after resume does not restore its old shuffle position.
     batches = cycle(train_loader)
     log_start = time.perf_counter()
     log_tokens = 0
 
     for step in range(start_step + 1, target_step + 1):
+        # 1. Fetch one causal-LM batch: inputs and next-token targets are (B, T).
         model.train()
         input_ids, targets = next(batches)
+
+        # 2. Put the token IDs on the same device as the model parameters.
         input_ids, targets = input_ids.to(device), targets.to(device)
+
+        # 3. Forward pass: logits are (B, T, V), then CE reduces them to one loss.
         logits = model(input_ids)
         loss = causal_lm_loss(logits, targets)
+
+        # 4. Clear previous gradients, backpropagate this loss, and inspect their norm.
         optimizer.zero_grad()
         loss.backward()
         grad_norm = global_grad_norm(model)
+
+        # 5. AdamW reads parameter gradients and updates model weights in place.
         optimizer.step()
 
+        # Count actual input tokens for stable interval-level throughput logging.
         log_tokens += input_ids.numel()
         if step % training_config["log_interval"] == 0:
             synchronize_if_cuda(device)
@@ -133,15 +148,18 @@ def main() -> None:
                 f"grad_norm={grad_norm:.4f} tokens_per_sec={log_tokens / elapsed:.0f}"
             )
             log_start, log_tokens = time.perf_counter(), 0
+        # Evaluation temporarily switches to eval mode and restores train mode afterward.
         if step % training_config["eval_interval"] == 0:
             metrics = evaluate(model, val_loader, device, training_config["eval_batches"])
             print(
                 f"step={step} val_loss={metrics['loss']:.4f} "
                 f"val_perplexity={metrics['perplexity']:.2f}"
             )
+        # Persist full training state at periodic global steps for future resume.
         if step % checkpoint_interval == 0:
             print(f"checkpoint={write_checkpoint(step)}")
 
+    # If the last periodic save did not land on the target, save the final state once.
     if target_step % checkpoint_interval != 0:
         print(f"checkpoint={write_checkpoint(target_step)}")
 
