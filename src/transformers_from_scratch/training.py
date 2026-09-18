@@ -60,6 +60,15 @@ def global_grad_norm(model: torch.nn.Module) -> float:
     return math.sqrt(squared_norm)
 
 
+def clip_or_measure_grad_norm(model: torch.nn.Module, max_grad_norm: float | None) -> float:
+    """Return pre-clipping global norm and clip in place when configured."""
+    if max_grad_norm is None:
+        return global_grad_norm(model)
+    if max_grad_norm <= 0:
+        raise ValueError("max_grad_norm must be strictly positive or null")
+    return torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=max_grad_norm).item()
+
+
 def set_seed(seed: int) -> None:
     """Seed common PRNGs; bitwise cross-device determinism is not guaranteed."""
     random.seed(seed)

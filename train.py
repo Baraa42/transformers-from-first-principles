@@ -17,8 +17,8 @@ from transformers_from_scratch.data import (
 from transformers_from_scratch.model import TinyDecoderLM
 from transformers_from_scratch.training import (
     causal_lm_loss,
+    clip_or_measure_grad_norm,
     evaluate,
-    global_grad_norm,
     load_config,
     resolve_device,
     set_seed,
@@ -84,6 +84,11 @@ def main() -> None:
     if start_step >= target_step:
         raise ValueError("Checkpoint step is already at or beyond training.steps")
 
+    # Validate clipping early; null leaves existing gradient behavior unchanged.
+    max_grad_norm = training_config.get("max_grad_norm")
+    if max_grad_norm is not None and max_grad_norm <= 0:
+        raise ValueError("max_grad_norm must be strictly positive or null")
+
     # 8. Load/tokenize data only after resume compatibility and RNG restoration succeed.
     train_text, val_text = load_tinystories_text_splits(
         data_config["dataset_name"], data_config["train_stories"], data_config["val_stories"]
@@ -136,12 +141,13 @@ def main() -> None:
         logits = model(input_ids)
         loss = causal_lm_loss(logits, targets)
 
-        # 11.4 Clear previous gradients, backpropagate this loss, and inspect their norm.
+        # 11.4 Clear old gradients, backpropagate, then measure/optionally clip globally.
         optimizer.zero_grad()
         loss.backward()
-        grad_norm = global_grad_norm(model)
+        grad_norm = clip_or_measure_grad_norm(model, max_grad_norm)
+        grad_clipped = max_grad_norm is not None and grad_norm > max_grad_norm
 
-        # 11.5 AdamW reads parameter gradients and updates model weights in place.
+        # 11.5 AdamW reads the (possibly clipped) gradients and updates weights in place.
         optimizer.step()
 
         # 11.6 Count tokens and log interval-level throughput when requested.
@@ -152,7 +158,8 @@ def main() -> None:
             lr = optimizer.param_groups[0]["lr"]
             print(
                 f"step={step} train_loss={loss.item():.4f} lr={lr:.2e} "
-                f"grad_norm={grad_norm:.4f} tokens_per_sec={log_tokens / elapsed:.0f}"
+                f"grad_norm={grad_norm:.4f} grad_clipped={grad_clipped} "
+                f"tokens_per_sec={log_tokens / elapsed:.0f}"
             )
             log_start, log_tokens = time.perf_counter(), 0
         # 11.7 Evaluate periodically; evaluate() restores training mode afterward.
