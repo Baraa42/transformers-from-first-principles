@@ -7,7 +7,7 @@ from pathlib import Path
 
 import torch
 
-from transformers_from_scratch.checkpointing import load_checkpoint, save_checkpoint
+from transformers_from_scratch.checkpointing import load_checkpoint, save_training_checkpoint
 from transformers_from_scratch.data import (
     create_dataloaders,
     load_tinystories_text_splits,
@@ -38,18 +38,53 @@ def synchronize_if_cuda(device: torch.device) -> None:
 
 
 def main() -> None:
+    # 1. Parse the CLI so we know which config and optional checkpoint to use.
     args = parse_args()
+
+    # 2. Load the plain YAML configuration and name its three major sections.
     config = load_config(args.config)
     data_config, model_config, training_config = (
         config["data"],
         config["model"],
         config["training"],
     )
+    # 3. Seed global randomness and select CPU, MPS, or CUDA.
     set_seed(config["seed"])
     device = resolve_device(config["device"])
     print(f"device={device}")
 
+    # 4. Load the fixed tokenizer so its vocabulary can be checked on resume.
     tokenizer = load_tokenizer(data_config["tokenizer_repo"])
+
+    # 5. Build fresh model/optimizer objects. A resume below replaces their saved state.
+    model = TinyDecoderLM(vocab_size=tokenizer.get_vocab_size(), **model_config).to(device)
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        lr=training_config["learning_rate"],
+        weight_decay=training_config["weight_decay"],
+    )
+    # 6. Optionally restore model, AdamW, global step, and RNG from a checkpoint.
+    # Fresh runs start at global step 0. Resumed runs continue at N + 1.
+    start_step = 0
+    if args.resume is not None:
+        checkpoint = load_checkpoint(
+            args.resume,
+            model=model,
+            optimizer=optimizer,
+            device=device,
+            model_config=model_config,
+            vocab_size=tokenizer.get_vocab_size(),
+            tokenizer_repo=data_config["tokenizer_repo"],
+        )
+        start_step = checkpoint["step"]
+        print(f"resuming_from={args.resume}")
+        print(f"start_step={start_step}")
+    # 7. Confirm there is work left: ``steps`` is a final global step, not extra steps.
+    target_step = training_config["steps"]
+    if start_step >= target_step:
+        raise ValueError("Checkpoint step is already at or beyond training.steps")
+
+    # 8. Load/tokenize data only after resume compatibility and RNG restoration succeed.
     train_text, val_text = load_tinystories_text_splits(
         data_config["dataset_name"], data_config["train_stories"], data_config["val_stories"]
     )
@@ -66,78 +101,50 @@ def main() -> None:
             "No full causal windows were created; reduce context length or load more data"
         )
 
-    # Build fresh objects first. A resume below replaces their saved state.
-    model = TinyDecoderLM(vocab_size=tokenizer.get_vocab_size(), **model_config).to(device)
-    optimizer = torch.optim.AdamW(
-        model.parameters(),
-        lr=training_config["learning_rate"],
-        weight_decay=training_config["weight_decay"],
-    )
-    # Fresh runs start at global step 0. Resumed runs continue at N + 1.
-    start_step = 0
-    if args.resume is not None:
-        checkpoint = load_checkpoint(
-            args.resume,
-            model=model,
-            optimizer=optimizer,
-            device=device,
-            model_config=model_config,
-            vocab_size=tokenizer.get_vocab_size(),
-            tokenizer_repo=data_config["tokenizer_repo"],
-        )
-        start_step = checkpoint["step"]
-        print(f"resuming_from={args.resume}")
-        print(f"start_step={start_step}")
-    # ``steps`` is the desired final global step, not an additional-step count.
-    target_step = training_config["steps"]
-    if start_step >= target_step:
-        raise ValueError("Checkpoint step is already at or beyond training.steps")
-
+    # 9. Configure periodic checkpoint naming and its explicit save arguments.
     checkpoint_dir = Path(training_config["checkpoint_dir"])
     checkpoint_interval = training_config["checkpoint_interval"]
     if checkpoint_interval < 1:
         raise ValueError("checkpoint_interval must be positive")
 
-    def write_checkpoint(step: int) -> Path:
-        path = checkpoint_dir / f"step-{step:06d}.pt"
-        return save_checkpoint(
-            path,
-            step=step,
-            model=model,
-            optimizer=optimizer,
-            model_config=model_config,
-            vocab_size=tokenizer.get_vocab_size(),
-            tokenizer_repo=data_config["tokenizer_repo"],
-            config=config,
-        )
+    checkpoint_args = {
+        "checkpoint_dir": checkpoint_dir,
+        "model": model,
+        "optimizer": optimizer,
+        "model_config": model_config,
+        "vocab_size": tokenizer.get_vocab_size(),
+        "tokenizer_repo": data_config["tokenizer_repo"],
+        "config": config,
+    }
 
-    # Keep requesting batches until the configured global target is reached.
-    # A newly created iterator after resume does not restore its old shuffle position.
+    # 10. Create the training-batch iterator and counters used for interval metrics.
+    # A new iterator after resume does not restore its old shuffle position.
     batches = cycle(train_loader)
     log_start = time.perf_counter()
     log_tokens = 0
 
+    # 11. Run steps start_step + 1 through target_step, inclusive.
     for step in range(start_step + 1, target_step + 1):
-        # 1. Fetch one causal-LM batch: inputs and next-token targets are (B, T).
+        # 11.1 Fetch one causal-LM batch: inputs and next-token targets are (B, T).
         model.train()
         input_ids, targets = next(batches)
 
-        # 2. Put the token IDs on the same device as the model parameters.
+        # 11.2 Put the token IDs on the same device as the model parameters.
         input_ids, targets = input_ids.to(device), targets.to(device)
 
-        # 3. Forward pass: logits are (B, T, V), then CE reduces them to one loss.
+        # 11.3 Forward pass: logits are (B, T, V), then CE reduces them to one loss.
         logits = model(input_ids)
         loss = causal_lm_loss(logits, targets)
 
-        # 4. Clear previous gradients, backpropagate this loss, and inspect their norm.
+        # 11.4 Clear previous gradients, backpropagate this loss, and inspect their norm.
         optimizer.zero_grad()
         loss.backward()
         grad_norm = global_grad_norm(model)
 
-        # 5. AdamW reads parameter gradients and updates model weights in place.
+        # 11.5 AdamW reads parameter gradients and updates model weights in place.
         optimizer.step()
 
-        # Count actual input tokens for stable interval-level throughput logging.
+        # 11.6 Count tokens and log interval-level throughput when requested.
         log_tokens += input_ids.numel()
         if step % training_config["log_interval"] == 0:
             synchronize_if_cuda(device)
@@ -148,20 +155,20 @@ def main() -> None:
                 f"grad_norm={grad_norm:.4f} tokens_per_sec={log_tokens / elapsed:.0f}"
             )
             log_start, log_tokens = time.perf_counter(), 0
-        # Evaluation temporarily switches to eval mode and restores train mode afterward.
+        # 11.7 Evaluate periodically; evaluate() restores training mode afterward.
         if step % training_config["eval_interval"] == 0:
             metrics = evaluate(model, val_loader, device, training_config["eval_batches"])
             print(
                 f"step={step} val_loss={metrics['loss']:.4f} "
                 f"val_perplexity={metrics['perplexity']:.2f}"
             )
-        # Persist full training state at periodic global steps for future resume.
+        # 11.8 Persist full state at periodic global steps for future resume.
         if step % checkpoint_interval == 0:
-            print(f"checkpoint={write_checkpoint(step)}")
+            print(f"checkpoint={save_training_checkpoint(step=step, **checkpoint_args)}")
 
-    # If the last periodic save did not land on the target, save the final state once.
+    # 12. If no periodic save landed on the target, save the final state once.
     if target_step % checkpoint_interval != 0:
-        print(f"checkpoint={write_checkpoint(target_step)}")
+        print(f"checkpoint={save_training_checkpoint(step=target_step, **checkpoint_args)}")
 
 
 if __name__ == "__main__":

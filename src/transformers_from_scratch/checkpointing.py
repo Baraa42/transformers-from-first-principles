@@ -63,6 +63,31 @@ def save_checkpoint(
     return target
 
 
+def save_training_checkpoint(
+    checkpoint_dir: str | Path,
+    *,
+    step: int,
+    model: torch.nn.Module,
+    optimizer: torch.optim.Optimizer,
+    model_config: dict[str, Any],
+    vocab_size: int,
+    tokenizer_repo: str,
+    config: dict[str, Any],
+) -> Path:
+    """Save a standard step-named training checkpoint in ``checkpoint_dir``."""
+    path = Path(checkpoint_dir) / f"step-{step:06d}.pt"
+    return save_checkpoint(
+        path,
+        step=step,
+        model=model,
+        optimizer=optimizer,
+        model_config=model_config,
+        vocab_size=vocab_size,
+        tokenizer_repo=tokenizer_repo,
+        config=config,
+    )
+
+
 def _move_optimizer_state_to_device(optimizer: torch.optim.Optimizer, device: torch.device) -> None:
     for state in optimizer.state.values():
         for name, value in state.items():
