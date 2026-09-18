@@ -81,7 +81,7 @@ def load_checkpoint(
     tokenizer_repo: str,
 ) -> dict[str, Any]:
     """Validate and restore complete training state, returning checkpoint metadata."""
-    checkpoint = torch.load(path, map_location=device, weights_only=False)
+    checkpoint = torch.load(path, map_location="cpu", weights_only=False)
     required = {
         "step",
         "model_state_dict",

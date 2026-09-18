@@ -14,14 +14,17 @@ TOKENIZER_REPO = "test/tiny-tokenizer"
 CONFIG = {"seed": 123, "data": {}, "model": MODEL_CONFIG, "training": {}}
 
 
-def make_model_and_optimizer() -> tuple[TinyDecoderLM, torch.optim.AdamW]:
-    model = TinyDecoderLM(vocab_size=VOCAB_SIZE, **MODEL_CONFIG)
+def make_model_and_optimizer(
+    device: torch.device = torch.device("cpu"),
+) -> tuple[TinyDecoderLM, torch.optim.AdamW]:
+    model = TinyDecoderLM(vocab_size=VOCAB_SIZE, **MODEL_CONFIG).to(device)
     return model, torch.optim.AdamW(model.parameters(), lr=1e-3)
 
 
 def train_one_step(model: TinyDecoderLM, optimizer: torch.optim.AdamW) -> None:
-    inputs = torch.tensor([[1, 2, 3], [4, 5, 6]], dtype=torch.long)
-    targets = torch.tensor([[2, 3, 4], [5, 6, 7]], dtype=torch.long)
+    device = next(model.parameters()).device
+    inputs = torch.tensor([[1, 2, 3], [4, 5, 6]], dtype=torch.long, device=device)
+    targets = torch.tensor([[2, 3, 4], [5, 6, 7]], dtype=torch.long, device=device)
     optimizer.zero_grad()
     causal_lm_loss(model(inputs), targets).backward()
     optimizer.step()
@@ -40,12 +43,14 @@ def save_test_checkpoint(path, model, optimizer, step: int = 20) -> None:
     )
 
 
-def load_test_checkpoint(path, model, optimizer) -> dict:
+def load_test_checkpoint(
+    path, model, optimizer, device: torch.device = torch.device("cpu")
+) -> dict:
     return load_checkpoint(
         path,
         model=model,
         optimizer=optimizer,
-        device=torch.device("cpu"),
+        device=device,
         model_config=MODEL_CONFIG,
         vocab_size=VOCAB_SIZE,
         tokenizer_repo=TOKENIZER_REPO,
@@ -97,16 +102,30 @@ def test_resume_uses_next_global_step_through_target() -> None:
 
 
 @pytest.mark.skipif(not torch.backends.mps.is_available(), reason="MPS is unavailable")
-def test_checkpoint_restores_mps_rng_state(tmp_path) -> None:
+def test_mps_load_keeps_cpu_rng_on_cpu_and_restores_training_state(tmp_path) -> None:
+    device = torch.device("mps")
+    random.seed(19)
+    np.random.seed(19)
+    torch.manual_seed(19)
     torch.mps.manual_seed(19)
-    model, optimizer = make_model_and_optimizer()
-    path = tmp_path / "mps-rng.pt"
+    model, optimizer = make_model_and_optimizer(device)
+    train_one_step(model, optimizer)
+    expected_parameters = [parameter.detach().cpu().clone() for parameter in model.parameters()]
+    path = tmp_path / "mps.pt"
     save_test_checkpoint(path, model, optimizer)
-    expected = torch.rand(3, device="mps")
-    torch.rand(3, device="mps")
+    expected_cpu_rng_draw = torch.rand(3)
+    expected_mps_rng_draw = torch.rand(3, device=device)
+    torch.rand(3), torch.rand(3, device=device)
 
-    restored_model, restored_optimizer = make_model_and_optimizer()
-    load_test_checkpoint(path, restored_model, restored_optimizer)
-    actual = torch.rand(3, device="mps")
+    restored_model, restored_optimizer = make_model_and_optimizer(device)
+    load_test_checkpoint(path, restored_model, restored_optimizer, device)
 
-    assert torch.equal(actual.cpu(), expected.cpu())
+    assert all(parameter.device.type == "mps" for parameter in restored_model.parameters())
+    for expected, actual in zip(expected_parameters, restored_model.parameters(), strict=True):
+        assert torch.equal(expected, actual.detach().cpu())
+    for state in restored_optimizer.state.values():
+        for value in state.values():
+            if isinstance(value, torch.Tensor):
+                assert value.device.type == "mps"
+    assert torch.equal(torch.rand(3), expected_cpu_rng_draw)
+    assert torch.equal(torch.rand(3, device=device).cpu(), expected_mps_rng_draw.cpu())
