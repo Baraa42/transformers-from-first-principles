@@ -16,6 +16,7 @@ from transformers_from_scratch.training import (
     infinite_batches,
     optimizer_step,
     scaler_step_was_skipped,
+    set_seed,
     validate_grad_accum_steps,
     validate_precision,
     validate_precision_state,
@@ -333,8 +334,23 @@ def test_optimizer_step_calls_step_then_update_once_for_fp16() -> None:
     assert events == ["step", "update"]
 
 
+def test_precision_preflight_does_not_change_seeded_model_initialization() -> None:
+    device = torch.device("cpu")
+    validate_precision_support(device, "bf16")
+    set_seed(123)
+    model_after_preflight = TinyDecoderLM(vocab_size=10, d_model=8, n_heads=2, d_ff=16, n_layers=1)
+
+    set_seed(123)
+    reference_model = TinyDecoderLM(vocab_size=10, d_model=8, n_heads=2, d_ff=16, n_layers=1)
+
+    for actual, expected in zip(
+        model_after_preflight.parameters(), reference_model.parameters(), strict=True
+    ):
+        assert torch.equal(actual, expected)
+
+
 @pytest.mark.skipif(not torch.backends.mps.is_available(), reason="MPS is unavailable")
-def test_mps_amp_preflight_and_autocast_keep_parameters_fp32() -> None:
+def test_mps_fp32_forward_backward_keeps_parameters_fp32() -> None:
     device = torch.device("mps")
     model = torch.nn.Linear(2, 2).to(device)
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
@@ -342,9 +358,47 @@ def test_mps_amp_preflight_and_autocast_keep_parameters_fp32() -> None:
     model(torch.ones(2, 2, device=device)).float().square().mean().backward()
     optimizer.step()
 
-    for precision, expected_dtype in (("fp16", torch.float16), ("bf16", torch.bfloat16)):
-        with autocast_context(device, precision):
-            output = model(torch.ones(2, 2, device=device))
-        assert output.dtype == expected_dtype
-        assert all(parameter.dtype == torch.float32 for parameter in model.parameters())
-        validate_precision_support(device, precision)
+    assert all(parameter.dtype == torch.float32 for parameter in model.parameters())
+
+
+@pytest.mark.skipif(not torch.backends.mps.is_available(), reason="MPS is unavailable")
+def test_mps_fp16_is_supported_or_rejected_clearly() -> None:
+    device = torch.device("mps")
+    try:
+        validate_precision_support(device, "fp16")
+    except ValueError as error:
+        assert "fp16 AMP is unsupported on mps" in str(error)
+        return
+
+    model = torch.nn.Linear(2, 2).to(device)
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+    assert create_grad_scaler(device, "fp16") is not None
+    scaler = torch.amp.GradScaler("mps", init_scale=128.0)
+    optimizer.zero_grad()
+    with autocast_context(device, "fp16"):
+        output = model(torch.ones(2, 2, device=device))
+        loss = output.float().square().mean()
+    scaler.scale(loss).backward()
+    scaler.unscale_(optimizer)
+    optimizer_step(precision="fp16", optimizer=optimizer, scaler=scaler)
+
+    assert output.dtype == torch.float16
+    assert all(parameter.dtype == torch.float32 for parameter in model.parameters())
+
+
+@pytest.mark.skipif(not torch.backends.mps.is_available(), reason="MPS is unavailable")
+def test_mps_bf16_is_supported_or_rejected_clearly() -> None:
+    device = torch.device("mps")
+    try:
+        validate_precision_support(device, "bf16")
+    except ValueError as error:
+        assert "bf16 AMP is unsupported on mps" in str(error)
+        return
+
+    model = torch.nn.Linear(2, 2).to(device)
+    with autocast_context(device, "bf16"):
+        output = model(torch.ones(2, 2, device=device))
+
+    assert output.dtype == torch.bfloat16
+    assert create_grad_scaler(device, "bf16") is None
+    assert all(parameter.dtype == torch.float32 for parameter in model.parameters())

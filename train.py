@@ -55,12 +55,14 @@ def main() -> None:
         config["model"],
         config["training"],
     )
-    # 3. Seed global randomness and select CPU, MPS, or CUDA.
-    set_seed(config["seed"])
+    # 3. Preflight requested AMP before seeding real training objects.
     device = resolve_device(config["device"])
     print(f"device={device}")
     precision = validate_precision(training_config.get("precision", "fp32"))
     validate_precision_support(device, precision)
+
+    # 4. Seed after throwaway checks so all modes initialize the real model identically.
+    set_seed(config["seed"])
     scaler = create_grad_scaler(device, precision)
     validate_precision_state(precision, scaler)
 
