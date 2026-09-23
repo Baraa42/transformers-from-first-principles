@@ -129,3 +129,52 @@ def test_mps_load_keeps_cpu_rng_on_cpu_and_restores_training_state(tmp_path) -> 
                 assert value.device.type == "mps"
     assert torch.equal(torch.rand(3), expected_cpu_rng_draw)
     assert torch.equal(torch.rand(3, device=device).cpu(), expected_mps_rng_draw.cpu())
+
+
+def test_checkpoint_optionally_round_trips_scaler_state_and_loads_old_checkpoints(tmp_path) -> None:
+    model, optimizer = make_model_and_optimizer()
+    scaler = torch.amp.GradScaler("cpu", init_scale=128.0)
+    path = tmp_path / "scaler.pt"
+    save_checkpoint(
+        path,
+        step=20,
+        model=model,
+        optimizer=optimizer,
+        model_config=MODEL_CONFIG,
+        vocab_size=VOCAB_SIZE,
+        tokenizer_repo=TOKENIZER_REPO,
+        config=CONFIG,
+        scaler=scaler,
+    )
+    saved = torch.load(path, map_location="cpu", weights_only=False)
+    assert saved["scaler_state_dict"] == scaler.state_dict()
+
+    restored_model, restored_optimizer = make_model_and_optimizer()
+    restored_scaler = torch.amp.GradScaler("cpu", init_scale=16.0)
+    load_checkpoint(
+        path,
+        model=restored_model,
+        optimizer=restored_optimizer,
+        device=torch.device("cpu"),
+        model_config=MODEL_CONFIG,
+        vocab_size=VOCAB_SIZE,
+        tokenizer_repo=TOKENIZER_REPO,
+        scaler=restored_scaler,
+    )
+    assert restored_scaler.state_dict() == scaler.state_dict()
+
+    saved.pop("scaler_state_dict")
+    old_path = tmp_path / "old-without-scaler.pt"
+    torch.save(saved, old_path)
+    old_scaler = torch.amp.GradScaler("cpu", init_scale=32.0)
+    load_checkpoint(
+        old_path,
+        model=restored_model,
+        optimizer=restored_optimizer,
+        device=torch.device("cpu"),
+        model_config=MODEL_CONFIG,
+        vocab_size=VOCAB_SIZE,
+        tokenizer_repo=TOKENIZER_REPO,
+        scaler=old_scaler,
+    )
+    assert old_scaler.state_dict()["scale"] == 32.0

@@ -7,12 +7,16 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from transformers_from_scratch.model import TinyDecoderLM
 from transformers_from_scratch.training import (
+    autocast_context,
     causal_lm_loss,
     clip_or_measure_grad_norm,
+    create_grad_scaler,
     evaluate,
     global_grad_norm,
     infinite_batches,
+    scaler_step_was_skipped,
     validate_grad_accum_steps,
+    validate_precision,
 )
 
 
@@ -205,3 +209,75 @@ def test_evaluate_weights_unequal_batches_by_target_tokens() -> None:
 
     assert metrics["loss"] == pytest.approx(expected)
     assert metrics["loss"] != pytest.approx(naive_mean)
+
+
+@pytest.mark.parametrize("precision", ["fp32", "fp16", "bf16"])
+def test_validate_precision_accepts_supported_modes(precision: str) -> None:
+    assert validate_precision(precision) == precision
+
+
+def test_validate_precision_rejects_unknown_mode() -> None:
+    with pytest.raises(ValueError, match="precision"):
+        validate_precision("float8")
+
+
+def test_fp32_precision_has_no_scaler_and_keeps_parameters_fp32() -> None:
+    device = torch.device("cpu")
+    model = torch.nn.Linear(2, 2)
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+    optimizer.zero_grad()
+    with autocast_context(device, "fp32"):
+        loss = model(torch.ones(2, 2)).float().square().mean()
+    loss.backward()
+    optimizer.step()
+
+    assert create_grad_scaler(device, "fp32") is None
+    assert all(parameter.dtype == torch.float32 for parameter in model.parameters())
+
+
+def test_bf16_autocast_keeps_parameters_fp32() -> None:
+    device = torch.device("cpu")
+    model = torch.nn.Linear(2, 2)
+    try:
+        with autocast_context(device, "bf16"):
+            output = model(torch.ones(2, 2))
+            loss = output.float().square().mean()
+        loss.backward()
+    except RuntimeError as error:
+        pytest.skip(f"CPU BF16 autocast is unavailable: {error}")
+
+    assert output.dtype == torch.bfloat16
+    assert create_grad_scaler(device, "bf16") is None
+    assert all(parameter.dtype == torch.float32 for parameter in model.parameters())
+
+
+def test_fp16_scaler_unscales_before_clipping_and_keeps_parameters_fp32() -> None:
+    device = torch.device("cpu")
+    model = torch.nn.Linear(2, 2)
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+    try:
+        assert create_grad_scaler(device, "fp16") is not None
+        scaler = torch.amp.GradScaler(device.type, init_scale=128.0)
+        optimizer.zero_grad()
+        with autocast_context(device, "fp16"):
+            loss = model(torch.ones(2, 2)).float().square().mean()
+        scaler.scale(loss).backward()
+        scaler.unscale_(optimizer)
+        grad_norm = clip_or_measure_grad_norm(model, max_grad_norm=1.0)
+        old_scale = scaler.get_scale()
+        scaler.step(optimizer)
+        scaler.update()
+    except RuntimeError as error:
+        pytest.skip(f"CPU FP16 AMP is unavailable: {error}")
+
+    assert grad_norm >= 0
+    assert scaler.get_scale() == old_scale
+    assert all(parameter.dtype == torch.float32 for parameter in model.parameters())
+
+
+def test_scale_backoff_marks_an_optimizer_attempt_as_skipped() -> None:
+    step = 7
+    next_step = step if scaler_step_was_skipped(128.0, 64.0) else step + 1
+
+    assert next_step == 7
+    assert not scaler_step_was_skipped(128.0, 128.0)

@@ -15,14 +15,18 @@ from transformers_from_scratch.data import (
 )
 from transformers_from_scratch.model import TinyDecoderLM
 from transformers_from_scratch.training import (
+    autocast_context,
     causal_lm_loss,
     clip_or_measure_grad_norm,
+    create_grad_scaler,
     evaluate,
     infinite_batches,
     load_config,
     resolve_device,
+    scaler_step_was_skipped,
     set_seed,
     validate_grad_accum_steps,
+    validate_precision,
 )
 
 
@@ -64,6 +68,9 @@ def main() -> None:
         lr=training_config["learning_rate"],
         weight_decay=training_config["weight_decay"],
     )
+    precision = validate_precision(training_config.get("precision", "fp32"))
+    scaler = create_grad_scaler(device, precision)
+
     # 6. Optionally restore model, AdamW, global step, and RNG from a checkpoint.
     # Fresh runs start at global step 0. Resumed runs continue at N + 1.
     start_step = 0
@@ -76,6 +83,7 @@ def main() -> None:
             model_config=model_config,
             vocab_size=tokenizer.get_vocab_size(),
             tokenizer_repo=data_config["tokenizer_repo"],
+            scaler=scaler,
         )
         start_step = checkpoint["step"]
         print(f"resuming_from={args.resume}")
@@ -122,6 +130,7 @@ def main() -> None:
         "vocab_size": tokenizer.get_vocab_size(),
         "tokenizer_repo": data_config["tokenizer_repo"],
         "config": config,
+        "scaler": scaler,
     }
 
     # 10. Create the training-batch iterator and counters used for interval metrics.
@@ -130,32 +139,47 @@ def main() -> None:
     log_start = time.perf_counter()
     log_tokens = 0
 
-    # 11. Run steps start_step + 1 through target_step, inclusive.
-    for step in range(start_step + 1, target_step + 1):
-        # 11.1 Each outer-loop iteration is one optimizer/global step.
+    # 11. Each completed outer iteration is one successful optimizer/global step.
+    step = start_step
+    while step < target_step:
         model.train()
         optimizer.zero_grad()
 
-        # 11.2 Accumulate scaled gradients from N microbatches without zeroing between them.
+        # 11.1 Accumulate N scaled or unscaled microbatch gradients.
         step_loss = 0.0
         for _ in range(grad_accum_steps):
             input_ids, targets = next(batches)
             input_ids, targets = input_ids.to(device), targets.to(device)
-
-            # 11.3 Forward pass: logits are (B, T, V), then CE reduces them to one loss.
-            loss = causal_lm_loss(model(input_ids), targets)
+            with autocast_context(device, precision):
+                loss = causal_lm_loss(model(input_ids), targets)
             step_loss += loss.item()
-            (loss / grad_accum_steps).backward()
+            scaled_loss = loss / grad_accum_steps
+            if scaler is None:
+                scaled_loss.backward()
+            else:
+                scaler.scale(scaled_loss).backward()
             log_tokens += input_ids.numel()
 
-        # 11.4 Measure/clip the final accumulated gradient once, before the update.
+        # 11.2 Unscale once, then measure/clip the real accumulated gradient once.
+        if scaler is not None:
+            scaler.unscale_(optimizer)
         grad_norm = clip_or_measure_grad_norm(model, max_grad_norm)
         grad_clipped = max_grad_norm is not None and grad_norm > max_grad_norm
 
-        # 11.5 AdamW reads the (possibly clipped) gradients and updates weights in place.
-        optimizer.step()
+        # 11.3 FP16 overflow is detected by public scale backoff after step/update.
+        if scaler is None:
+            optimizer.step()
+        else:
+            old_scale = scaler.get_scale()
+            scaler.step(optimizer)
+            scaler.update()
+            if scaler_step_was_skipped(old_scale, scaler.get_scale()):
+                print(f"amp_overflow=true scale={scaler.get_scale():.0f}")
+                continue
 
-        # 11.6 Log mean unscaled microbatch loss and all processed input tokens.
+        step += 1
+
+        # 11.4 Log mean unscaled loss and all consumed microbatch tokens.
         if step % training_config["log_interval"] == 0:
             synchronize_if_cuda(device)
             elapsed = time.perf_counter() - log_start
@@ -166,14 +190,14 @@ def main() -> None:
                 f"tokens_per_sec={log_tokens / elapsed:.0f}"
             )
             log_start, log_tokens = time.perf_counter(), 0
-        # 11.7 Evaluate periodically; evaluate() restores training mode afterward.
         if step % training_config["eval_interval"] == 0:
-            metrics = evaluate(model, val_loader, device, training_config["eval_batches"])
+            metrics = evaluate(
+                model, val_loader, device, training_config["eval_batches"], precision
+            )
             print(
                 f"step={step} val_loss={metrics['loss']:.4f} "
                 f"val_perplexity={metrics['perplexity']:.2f}"
             )
-        # 11.8 Persist full state at periodic global steps for future resume.
         if step % checkpoint_interval == 0:
             print(f"checkpoint={save_training_checkpoint(step=step, **checkpoint_args)}")
 

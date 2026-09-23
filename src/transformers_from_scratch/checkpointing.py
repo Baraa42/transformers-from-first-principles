@@ -43,6 +43,7 @@ def save_checkpoint(
     vocab_size: int,
     tokenizer_repo: str,
     config: dict[str, Any],
+    scaler: Any | None = None,
 ) -> Path:
     """Atomically save complete model, optimizer, metadata, and RNG state."""
     target = Path(path)
@@ -56,6 +57,7 @@ def save_checkpoint(
         "tokenizer_repo": tokenizer_repo,
         "config": config,
         "rng_state": capture_rng_state(),
+        "scaler_state_dict": scaler.state_dict() if scaler is not None else None,
     }
     temporary = target.with_name(f"{target.name}.tmp")
     torch.save(payload, temporary)
@@ -73,6 +75,7 @@ def save_training_checkpoint(
     vocab_size: int,
     tokenizer_repo: str,
     config: dict[str, Any],
+    scaler: Any | None = None,
 ) -> Path:
     """Save a standard step-named training checkpoint in ``checkpoint_dir``."""
     path = Path(checkpoint_dir) / f"step-{step:06d}.pt"
@@ -85,6 +88,7 @@ def save_training_checkpoint(
         vocab_size=vocab_size,
         tokenizer_repo=tokenizer_repo,
         config=config,
+        scaler=scaler,
     )
 
 
@@ -104,6 +108,7 @@ def load_checkpoint(
     model_config: dict[str, Any],
     vocab_size: int,
     tokenizer_repo: str,
+    scaler: Any | None = None,
 ) -> dict[str, Any]:
     """Validate and restore complete training state, returning checkpoint metadata."""
     checkpoint = torch.load(path, map_location="cpu", weights_only=False)
@@ -133,5 +138,7 @@ def load_checkpoint(
     model.load_state_dict(checkpoint["model_state_dict"])
     optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
     _move_optimizer_state_to_device(optimizer, device)
+    if scaler is not None and checkpoint.get("scaler_state_dict") is not None:
+        scaler.load_state_dict(checkpoint["scaler_state_dict"])
     restore_rng_state(checkpoint["rng_state"])
     return checkpoint

@@ -4,6 +4,7 @@ import math
 import random
 import sys
 from collections.abc import Iterable, Iterator
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Any
 
@@ -35,19 +36,22 @@ def evaluate(
     loader: Iterable[tuple[torch.Tensor, torch.Tensor]],
     device: torch.device,
     max_batches: int | None = None,
+    precision: str = "fp32",
 ) -> dict[str, float]:
     """Return average validation loss/perplexity and restore the model's mode."""
     was_training = model.training
     model.eval()
     total_loss = 0.0
     total_tokens = 0
+    precision = validate_precision(precision)
     try:
         with torch.inference_mode():
             for batch_index, (input_ids, targets) in enumerate(loader):
                 if max_batches is not None and batch_index >= max_batches:
                     break
                 input_ids, targets = input_ids.to(device), targets.to(device)
-                loss = causal_lm_loss(model(input_ids), targets)
+                with autocast_context(device, precision):
+                    loss = causal_lm_loss(model(input_ids), targets)
                 n_tokens = targets.numel()
                 total_loss += loss.item() * n_tokens
                 total_tokens += n_tokens
@@ -84,6 +88,44 @@ def validate_grad_accum_steps(value: object) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
         raise ValueError("grad_accum_steps must be an integer >= 1")
     return value
+
+
+def validate_precision(value: object) -> str:
+    """Validate the supported autocast precision names."""
+    if value not in {"fp32", "fp16", "bf16"}:
+        raise ValueError("precision must be fp32, fp16, or bf16")
+    return value
+
+
+def autocast_context(device: torch.device, precision: str) -> Any:
+    """Return FP32 no-op or the requested public PyTorch autocast context."""
+    precision = validate_precision(precision)
+    if precision == "fp32":
+        return nullcontext()
+    dtype = torch.float16 if precision == "fp16" else torch.bfloat16
+    try:
+        return torch.autocast(device_type=device.type, dtype=dtype)
+    except (RuntimeError, ValueError) as error:
+        raise ValueError(f"{precision} autocast is unsupported on {device.type}") from error
+
+
+def create_grad_scaler(device: torch.device, precision: str) -> Any | None:
+    """Create an enabled public GradScaler for FP16, or no scaler otherwise."""
+    precision = validate_precision(precision)
+    if precision != "fp16":
+        return None
+    try:
+        scaler = torch.amp.GradScaler(device.type)
+    except (RuntimeError, ValueError) as error:
+        raise ValueError(f"fp16 GradScaler is unsupported on {device.type}") from error
+    if not scaler.is_enabled():
+        raise ValueError(f"fp16 GradScaler is unsupported on {device.type}")
+    return scaler
+
+
+def scaler_step_was_skipped(old_scale: float, new_scale: float) -> bool:
+    """Use public GradScaler scale backoff as the overflow/skip signal."""
+    return new_scale < old_scale
 
 
 def set_seed(seed: int) -> None:

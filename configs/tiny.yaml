@@ -21,6 +21,7 @@ training:
   steps: 2000
   learning_rate: 0.0003
   weight_decay: 0.01
+  precision: fp32
   grad_accum_steps: 1
   max_grad_norm: 1.0
   eval_interval: 100
