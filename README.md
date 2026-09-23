@@ -65,6 +65,15 @@ poetry run ruff check .
 poetry run ruff format .
 ```
 
+Check the selected backend's actual local AMP capabilities:
+
+```bash
+poetry run python scripts/check_precision.py
+```
+
+AMP support depends on both the backend and installed PyTorch version; this
+command exercises representative autocast and FP16 GradScaler operations.
+
 Or activate the Poetry environment for the current shell:
 
 ```bash

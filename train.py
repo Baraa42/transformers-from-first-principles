@@ -17,12 +17,11 @@ from transformers_from_scratch.model import TinyDecoderLM
 from transformers_from_scratch.training import (
     autocast_context,
     causal_lm_loss,
-    clip_or_measure_grad_norm,
+    complete_optimizer_step,
     create_grad_scaler,
     evaluate,
     infinite_batches,
     load_config,
-    optimizer_step,
     resolve_device,
     set_seed,
     validate_grad_accum_steps,
@@ -165,15 +164,16 @@ def main() -> None:
                 scaled_loss.backward()
             log_tokens += input_ids.numel()
 
-        # 11.2 Unscale once, then measure/clip the real accumulated gradient once.
-        if precision == "fp16":
-            scaler.unscale_(optimizer)
-        grad_norm = clip_or_measure_grad_norm(model, max_grad_norm)
-        grad_clipped = max_grad_norm is not None and grad_norm > max_grad_norm
-
-        # 11.3 A scale decrease means FP16 overflow skipped the optimizer update.
+        # 11.2 Unscale, measure/clip, and attempt exactly one optimizer update.
         old_scale = scaler.get_scale() if precision == "fp16" else None
-        did_step = optimizer_step(precision=precision, optimizer=optimizer, scaler=scaler)
+        grad_norm, did_step = complete_optimizer_step(
+            model=model,
+            optimizer=optimizer,
+            precision=precision,
+            scaler=scaler,
+            max_grad_norm=max_grad_norm,
+        )
+        grad_clipped = max_grad_norm is not None and grad_norm > max_grad_norm
         if not did_step:
             print(f"amp_overflow=true old_scale={old_scale:.0f} new_scale={scaler.get_scale():.0f}")
             # Skipped-attempt tokens remain in throughput: hardware processed them.

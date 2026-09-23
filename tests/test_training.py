@@ -5,6 +5,7 @@ import pytest
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
+import transformers_from_scratch.training as training
 from transformers_from_scratch.model import TinyDecoderLM
 from transformers_from_scratch.training import (
     autocast_context,
@@ -332,6 +333,71 @@ def test_optimizer_step_calls_step_then_update_once_for_fp16() -> None:
     optimizer = torch.optim.SGD(torch.nn.Linear(1, 1).parameters(), lr=0.1)
     assert optimizer_step(precision="fp16", optimizer=optimizer, scaler=FakeScaler())
     assert events == ["step", "update"]
+
+
+def test_fp16_accumulation_unscales_clips_and_steps_once(monkeypatch) -> None:
+    events: list[str] = []
+    grad_accum_steps = 2
+
+    class ScaledLoss:
+        def backward(self) -> None:
+            events.append("backward")
+
+    class TrackingScaler:
+        def scale(self, loss: torch.Tensor) -> ScaledLoss:
+            events.append("scale")
+            return ScaledLoss()
+
+        def unscale_(self, optimizer: torch.optim.Optimizer) -> None:
+            events.append("unscale")
+
+        def get_scale(self) -> float:
+            return 8.0
+
+        def step(self, optimizer: torch.optim.Optimizer) -> None:
+            events.append("step")
+
+        def update(self) -> None:
+            events.append("update")
+
+    def track_clip(model: torch.nn.Module, max_grad_norm: float | None) -> float:
+        events.append("clip")
+        return 2.0
+
+    model = torch.nn.Linear(1, 1)
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+    scaler = TrackingScaler()
+    optimizer.zero_grad()
+    for _ in range(grad_accum_steps):
+        loss = model(torch.ones(1, 1)).sum() / grad_accum_steps
+        scaler.scale(loss).backward()
+
+    monkeypatch.setattr(training, "clip_or_measure_grad_norm", track_clip)
+    grad_norm, did_step = training.complete_optimizer_step(
+        model=model,
+        optimizer=optimizer,
+        precision="fp16",
+        scaler=scaler,
+        max_grad_norm=1.0,
+    )
+
+    assert grad_norm == 2.0
+    assert did_step
+    assert events == [
+        "scale",
+        "backward",
+        "scale",
+        "backward",
+        "unscale",
+        "clip",
+        "step",
+        "update",
+    ]
+    assert events.count("scale") == grad_accum_steps
+    assert events.count("unscale") == 1
+    assert events.count("clip") == 1
+    assert events.count("step") == 1
+    assert events.count("update") == 1
 
 
 def test_precision_preflight_does_not_change_seeded_model_initialization() -> None:

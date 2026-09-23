@@ -129,32 +129,69 @@ def validate_precision_state(precision: str, scaler: Any | None) -> None:
         raise ValueError("fp16 requires a GradScaler; fp32 and bf16 must not use one")
 
 
-def validate_precision_support(device: torch.device, precision: str) -> None:
-    """Run a tiny throwaway AMP lifecycle and reject unsupported backend modes."""
+def validate_autocast_support(device: torch.device, precision: str) -> None:
+    """Execute a representative operation and verify the requested autocast dtype."""
     precision = validate_precision(precision)
-    if precision == "fp32":
-        return
     try:
         model = torch.nn.Linear(2, 2).to(device)
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
         inputs = torch.ones(2, 2, device=device)
         with autocast_context(device, precision):
             outputs = model(inputs)
-            loss = outputs.float().square().mean()
-        expected_dtype = torch.float16 if precision == "fp16" else torch.bfloat16
+        expected_dtype = {
+            "fp32": torch.float32,
+            "fp16": torch.float16,
+            "bf16": torch.bfloat16,
+        }[precision]
         if outputs.dtype != expected_dtype:
-            raise RuntimeError(f"autocast produced {outputs.dtype}, not {expected_dtype}")
-        if precision == "fp16":
-            scaler = create_grad_scaler(device, precision)
-            scaler.scale(loss).backward()
-            scaler.unscale_(optimizer)
-            scaler.step(optimizer)
-            scaler.update()
-        else:
-            loss.backward()
-            optimizer.step()
+            raise RuntimeError(f"operation produced {outputs.dtype}, not {expected_dtype}")
     except Exception as error:
+        raise ValueError(
+            f"{precision} autocast is unsupported on {device.type}: {error}"
+        ) from error
+
+
+def validate_grad_scaler_support(device: torch.device) -> None:
+    """Execute a real FP16 GradScaler backward/unscale/step/update lifecycle."""
+    try:
+        model = torch.nn.Linear(2, 2).to(device)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+        with autocast_context(device, "fp16"):
+            loss = model(torch.ones(2, 2, device=device)).float().square().mean()
+        scaler = create_grad_scaler(device, "fp16")
+        scaler.scale(loss).backward()
+        scaler.unscale_(optimizer)
+        scaler.step(optimizer)
+        scaler.update()
+    except Exception as error:
+        raise ValueError(f"fp16 GradScaler is unsupported on {device.type}: {error}") from error
+
+
+def validate_precision_support(device: torch.device, precision: str) -> None:
+    """Reject precision modes that fail a real backend capability check."""
+    precision = validate_precision(precision)
+    try:
+        validate_autocast_support(device, precision)
+        if precision == "fp16":
+            validate_grad_scaler_support(device)
+    except ValueError as error:
         raise ValueError(f"{precision} AMP is unsupported on {device.type}: {error}") from error
+
+
+def complete_optimizer_step(
+    *,
+    model: torch.nn.Module,
+    optimizer: torch.optim.Optimizer,
+    precision: str,
+    scaler: Any | None,
+    max_grad_norm: float | None,
+) -> tuple[float, bool]:
+    """Unscale, measure/clip once, and perform exactly one optimizer attempt."""
+    validate_precision_state(precision, scaler)
+    if precision == "fp16":
+        scaler.unscale_(optimizer)
+    grad_norm = clip_or_measure_grad_norm(model, max_grad_norm)
+    did_step = optimizer_step(precision=precision, optimizer=optimizer, scaler=scaler)
+    return grad_norm, did_step
 
 
 def optimizer_step(*, precision: str, optimizer: torch.optim.Optimizer, scaler: Any | None) -> bool:
