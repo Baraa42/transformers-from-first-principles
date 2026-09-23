@@ -74,6 +74,19 @@ poetry run python scripts/check_precision.py
 AMP support depends on both the backend and installed PyTorch version; this
 command exercises representative autocast and FP16 GradScaler operations.
 
+## Precision benchmark
+
+Run the same 300-step workload in fresh FP32, FP16, and BF16 processes:
+
+```bash
+poetry run python scripts/check_precision.py
+poetry run python scripts/benchmark_precision.py
+```
+
+Raw logs are written to `benchmarks/precision/` and remain local. Reported total
+wall time includes the training loop, validation, and checkpoint writes; model,
+tokenizer, and dataset setup are excluded.
+
 Or activate the Poetry environment for the current shell:
 
 ```bash

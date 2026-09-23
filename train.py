@@ -24,6 +24,7 @@ from transformers_from_scratch.training import (
     load_config,
     resolve_device,
     set_seed,
+    synchronize_device,
     validate_grad_accum_steps,
     validate_precision,
     validate_precision_state,
@@ -36,11 +37,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", required=True, help="Path to a YAML config")
     parser.add_argument("--resume", default=None, help="Path to checkpoint to resume from")
     return parser.parse_args()
-
-
-def synchronize_if_cuda(device: torch.device) -> None:
-    if device.type == "cuda":
-        torch.cuda.synchronize(device)
 
 
 def main() -> None:
@@ -140,8 +136,11 @@ def main() -> None:
     # 10. Create the training-batch iterator and counters used for interval metrics.
     # A new iterator after resume does not restore its old shuffle position.
     batches = infinite_batches(train_loader)
-    log_start = time.perf_counter()
+    synchronize_device(device)
+    training_start = time.perf_counter()
+    log_start = training_start
     log_tokens = 0
+    amp_overflow_count = 0
 
     # 11. Each completed outer iteration is one successful optimizer/global step.
     step = start_step
@@ -175,6 +174,7 @@ def main() -> None:
         )
         grad_clipped = max_grad_norm is not None and grad_norm > max_grad_norm
         if not did_step:
+            amp_overflow_count += 1
             print(f"amp_overflow=true old_scale={old_scale:.0f} new_scale={scaler.get_scale():.0f}")
             # Skipped-attempt tokens remain in throughput: hardware processed them.
             continue
@@ -183,7 +183,7 @@ def main() -> None:
 
         # 11.4 Log mean unscaled loss and all consumed microbatch tokens.
         if step % training_config["log_interval"] == 0:
-            synchronize_if_cuda(device)
+            synchronize_device(device)
             elapsed = time.perf_counter() - log_start
             lr = optimizer.param_groups[0]["lr"]
             print(
@@ -191,6 +191,7 @@ def main() -> None:
                 f"grad_norm={grad_norm:.4f} grad_clipped={grad_clipped} "
                 f"tokens_per_sec={log_tokens / elapsed:.0f}"
             )
+            synchronize_device(device)
             log_start, log_tokens = time.perf_counter(), 0
         if step % training_config["eval_interval"] == 0:
             metrics = evaluate(
@@ -206,6 +207,13 @@ def main() -> None:
     # 12. If no periodic save landed on the target, save the final state once.
     if target_step % checkpoint_interval != 0:
         print(f"checkpoint={save_training_checkpoint(step=target_step, **checkpoint_args)}")
+
+    # 13. Report synchronized loop time and precision-specific scaler diagnostics.
+    synchronize_device(device)
+    training_wall_time = time.perf_counter() - training_start
+    final_grad_scale = f"{scaler.get_scale():g}" if precision == "fp16" else "none"
+    print(f"training_wall_time_sec={training_wall_time:.3f}")
+    print(f"amp_overflow_count={amp_overflow_count} final_grad_scale={final_grad_scale}")
 
 
 if __name__ == "__main__":

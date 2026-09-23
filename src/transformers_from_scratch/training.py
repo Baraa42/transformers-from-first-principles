@@ -220,6 +220,14 @@ def set_seed(seed: int) -> None:
         torch.cuda.manual_seed_all(seed)
 
 
+def synchronize_device(device: torch.device) -> None:
+    """Wait for queued accelerator work at a wall-clock timing boundary."""
+    if device.type == "cuda":
+        torch.cuda.synchronize(device)
+    elif device.type == "mps":
+        torch.mps.synchronize()
+
+
 def resolve_device(requested: str) -> torch.device:
     """Resolve ``auto``, ``cpu``, ``cuda``, or ``mps`` to an available device."""
     if requested == "auto":

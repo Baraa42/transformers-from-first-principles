@@ -29,6 +29,7 @@ datasets/
 outputs/
 generated/
 runs/
+/benchmarks/
 wandb/
 *.pt
 *.pth

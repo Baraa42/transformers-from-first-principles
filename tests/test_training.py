@@ -18,11 +18,41 @@ from transformers_from_scratch.training import (
     optimizer_step,
     scaler_step_was_skipped,
     set_seed,
+    synchronize_device,
     validate_grad_accum_steps,
     validate_precision,
     validate_precision_state,
     validate_precision_support,
 )
+
+
+def test_synchronize_device_cpu_is_a_no_op(monkeypatch) -> None:
+    calls: list[str] = []
+    monkeypatch.setattr(training.torch.cuda, "synchronize", lambda device: calls.append("cuda"))
+    monkeypatch.setattr(training.torch.mps, "synchronize", lambda: calls.append("mps"))
+
+    synchronize_device(torch.device("cpu"))
+
+    assert calls == []
+
+
+def test_synchronize_device_dispatches_to_cuda(monkeypatch) -> None:
+    devices: list[torch.device] = []
+    monkeypatch.setattr(training.torch.cuda, "synchronize", devices.append)
+
+    device = torch.device("cuda")
+    synchronize_device(device)
+
+    assert devices == [device]
+
+
+def test_synchronize_device_dispatches_to_mps(monkeypatch) -> None:
+    calls: list[str] = []
+    monkeypatch.setattr(training.torch.mps, "synchronize", lambda: calls.append("mps"))
+
+    synchronize_device(torch.device("mps"))
+
+    assert calls == ["mps"]
 
 
 def test_causal_lm_loss_is_finite_scalar_and_differentiable() -> None:
