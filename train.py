@@ -22,11 +22,13 @@ from transformers_from_scratch.training import (
     evaluate,
     infinite_batches,
     load_config,
+    optimizer_step,
     resolve_device,
-    scaler_step_was_skipped,
     set_seed,
     validate_grad_accum_steps,
     validate_precision,
+    validate_precision_state,
+    validate_precision_support,
 )
 
 
@@ -57,6 +59,10 @@ def main() -> None:
     set_seed(config["seed"])
     device = resolve_device(config["device"])
     print(f"device={device}")
+    precision = validate_precision(training_config.get("precision", "fp32"))
+    validate_precision_support(device, precision)
+    scaler = create_grad_scaler(device, precision)
+    validate_precision_state(precision, scaler)
 
     # 4. Load the fixed tokenizer so its vocabulary can be checked on resume.
     tokenizer = load_tokenizer(data_config["tokenizer_repo"])
@@ -68,9 +74,6 @@ def main() -> None:
         lr=training_config["learning_rate"],
         weight_decay=training_config["weight_decay"],
     )
-    precision = validate_precision(training_config.get("precision", "fp32"))
-    scaler = create_grad_scaler(device, precision)
-
     # 6. Optionally restore model, AdamW, global step, and RNG from a checkpoint.
     # Fresh runs start at global step 0. Resumed runs continue at N + 1.
     start_step = 0
@@ -154,28 +157,25 @@ def main() -> None:
                 loss = causal_lm_loss(model(input_ids), targets)
             step_loss += loss.item()
             scaled_loss = loss / grad_accum_steps
-            if scaler is None:
-                scaled_loss.backward()
-            else:
+            if precision == "fp16":
                 scaler.scale(scaled_loss).backward()
+            else:
+                scaled_loss.backward()
             log_tokens += input_ids.numel()
 
         # 11.2 Unscale once, then measure/clip the real accumulated gradient once.
-        if scaler is not None:
+        if precision == "fp16":
             scaler.unscale_(optimizer)
         grad_norm = clip_or_measure_grad_norm(model, max_grad_norm)
         grad_clipped = max_grad_norm is not None and grad_norm > max_grad_norm
 
-        # 11.3 FP16 overflow is detected by public scale backoff after step/update.
-        if scaler is None:
-            optimizer.step()
-        else:
-            old_scale = scaler.get_scale()
-            scaler.step(optimizer)
-            scaler.update()
-            if scaler_step_was_skipped(old_scale, scaler.get_scale()):
-                print(f"amp_overflow=true scale={scaler.get_scale():.0f}")
-                continue
+        # 11.3 A scale decrease means FP16 overflow skipped the optimizer update.
+        old_scale = scaler.get_scale() if precision == "fp16" else None
+        did_step = optimizer_step(precision=precision, optimizer=optimizer, scaler=scaler)
+        if not did_step:
+            print(f"amp_overflow=true old_scale={old_scale:.0f} new_scale={scaler.get_scale():.0f}")
+            # Skipped-attempt tokens remain in throughput: hardware processed them.
+            continue
 
         step += 1
 

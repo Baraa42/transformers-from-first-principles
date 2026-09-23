@@ -6,44 +6,25 @@ A minimal, research-friendly project for building a decoder-only Transformer man
 
 ### Stage 1 — Transformer from first principles
 
-- Token embeddings
-- Causal multi-head self-attention
-- RoPE
-- Pre-norm decoder blocks
-- LayerNorm
-- SiLU MLP
-- LM head
-- Causal LM loss
-- Autoregressive generation
-- Correctness tests
+- Token embeddings, causal attention, RoPE, decoder blocks, and LM head
+- Autoregressive loss and generation
 
-### Stage 2 — Reproducible training system
+### Stage 2 — Reproducible training
 
-- TinyStories data pipeline
-- Tokenizer integration
-- Dataset/DataLoader
-- Training and validation loops
-- YAML config, reproducible seeds, and metrics logging
+- TinyStories pipeline, checkpoints/resume, gradient clipping, and accumulation
 
-### Stage 3 — Modern LLM components / experiments
+### Stage 3 — Training correctness
 
-- RMSNorm
-- SwiGLU
-- Weight tying
-- Training-dynamics experiments
+- Full training batches, reshuffling epochs, and token-weighted validation
 
-### Stage 4 — Inference / systems
+### Stage 4 — Mixed precision
 
-- KV cache
-- Profiling
-- Batching
-- `torch.compile`
+- `precision: fp32 | fp16 | bf16` in the training config
+- FP16 uses GradScaler; BF16 and FP16 availability is verified on the selected backend
 
-### Stage 4 — Systems experiments
+### Later systems experiments
 
-- Mixed precision
-- Quantization
-- Serving experiments
+- KV cache, profiling, batching, `torch.compile`, quantization, and serving
 
 ## Model and training path
 
@@ -66,8 +47,7 @@ TinyStories
 ```
 
 The model returns raw logits; loss remains outside `TinyDecoderLM.forward()`.
-This initial training-system block deliberately excludes schedulers/warmup,
-mixed precision, distributed training, KV cache, and profiling.
+The current training system includes optional mixed precision; schedulers/warmup, distributed training, KV cache, and profiling remain out of scope.
 
 ## Setup and commands
 
@@ -111,7 +91,7 @@ After training, sample from a saved checkpoint with:
 
 ```bash
 poetry run python generate.py \
-  --checkpoint checkpoints/tinystories-2k.pt \
+  --checkpoint checkpoints/step-002000.pt \
   --prompt "Once upon a time" --max-new-tokens 100 --temperature 0.8 --top-k 50
 ```
 

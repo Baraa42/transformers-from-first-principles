@@ -14,9 +14,12 @@ from transformers_from_scratch.training import (
     evaluate,
     global_grad_norm,
     infinite_batches,
+    optimizer_step,
     scaler_step_was_skipped,
     validate_grad_accum_steps,
     validate_precision,
+    validate_precision_state,
+    validate_precision_support,
 )
 
 
@@ -281,3 +284,67 @@ def test_scale_backoff_marks_an_optimizer_attempt_as_skipped() -> None:
 
     assert next_step == 7
     assert not scaler_step_was_skipped(128.0, 128.0)
+
+
+def test_precision_preflight_and_impossible_scaler_states_on_cpu() -> None:
+    device = torch.device("cpu")
+    validate_precision_support(device, "fp32")
+    validate_precision_support(device, "bf16")
+    validate_precision_support(device, "fp16")
+
+    with pytest.raises(ValueError, match="fp16 requires"):
+        validate_precision_state("fp16", None)
+    with pytest.raises(ValueError, match="fp16 requires"):
+        validate_precision_state("bf16", torch.amp.GradScaler("cpu"))
+
+
+def test_real_grad_scaler_overflow_skips_parameter_update() -> None:
+    model = torch.nn.Linear(1, 1)
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+    scaler = torch.amp.GradScaler("cpu", init_scale=128.0)
+    before = [parameter.detach().clone() for parameter in model.parameters()]
+
+    optimizer.zero_grad()
+    non_finite_loss = model(torch.ones(1, 1)).sum() * torch.tensor(float("inf"))
+    scaler.scale(non_finite_loss).backward()
+    scaler.unscale_(optimizer)
+    did_step = optimizer_step(precision="fp16", optimizer=optimizer, scaler=scaler)
+
+    assert not did_step
+    for expected, actual in zip(before, model.parameters(), strict=True):
+        assert torch.equal(expected, actual)
+
+
+def test_optimizer_step_calls_step_then_update_once_for_fp16() -> None:
+    events: list[str] = []
+
+    class FakeScaler:
+        def get_scale(self) -> float:
+            return 8.0
+
+        def step(self, optimizer: torch.optim.Optimizer) -> None:
+            events.append("step")
+
+        def update(self) -> None:
+            events.append("update")
+
+    optimizer = torch.optim.SGD(torch.nn.Linear(1, 1).parameters(), lr=0.1)
+    assert optimizer_step(precision="fp16", optimizer=optimizer, scaler=FakeScaler())
+    assert events == ["step", "update"]
+
+
+@pytest.mark.skipif(not torch.backends.mps.is_available(), reason="MPS is unavailable")
+def test_mps_amp_preflight_and_autocast_keep_parameters_fp32() -> None:
+    device = torch.device("mps")
+    model = torch.nn.Linear(2, 2).to(device)
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+    optimizer.zero_grad()
+    model(torch.ones(2, 2, device=device)).float().square().mean().backward()
+    optimizer.step()
+
+    for precision, expected_dtype in (("fp16", torch.float16), ("bf16", torch.bfloat16)):
+        with autocast_context(device, precision):
+            output = model(torch.ones(2, 2, device=device))
+        assert output.dtype == expected_dtype
+        assert all(parameter.dtype == torch.float32 for parameter in model.parameters())
+        validate_precision_support(device, precision)
