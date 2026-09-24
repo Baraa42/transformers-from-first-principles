@@ -4,7 +4,7 @@ import re
 import statistics
 from dataclasses import dataclass
 
-_FIELD_PATTERN = re.compile(r"([a-z_]+)=([^\s]+)")
+_FIELD_PATTERN = re.compile(r"([a-z][a-z0-9_]*)=([^\s]+)")
 
 
 @dataclass(frozen=True)
@@ -87,5 +87,82 @@ def relative_throughput(results: list[BenchmarkMetrics]) -> dict[str, float]:
         raise ValueError("FP32 median throughput must be positive")
     return {
         result.precision: result.median_tokens_per_sec / fp32.median_tokens_per_sec
+        for result in results
+    }
+
+
+@dataclass(frozen=True)
+class ScalingBenchmarkMetrics:
+    """Synchronized step metrics for one batch/context workload."""
+
+    context_length: int
+    batch_size: int
+    tokens_per_step: int
+    median_step_ms: float
+    p95_step_ms: float
+    median_tokens_per_sec: float
+
+
+def parse_profile_step_times(log: str) -> tuple[float, float]:
+    """Extract synchronized median and p95 successful-step latency."""
+    median_step_ms: float | None = None
+    p95_step_ms: float | None = None
+    for line in log.splitlines():
+        fields = dict(_FIELD_PATTERN.findall(line))
+        if "step_time_median_ms" in fields:
+            median_step_ms = float(fields["step_time_median_ms"])
+        if "step_time_p95_ms" in fields:
+            p95_step_ms = float(fields["step_time_p95_ms"])
+    missing = [
+        name
+        for name, value in (
+            ("step_time_median_ms", median_step_ms),
+            ("step_time_p95_ms", p95_step_ms),
+        )
+        if value is None
+    ]
+    if missing:
+        raise ValueError(f"Profile log is missing required metrics: {', '.join(missing)}")
+    if median_step_ms <= 0:
+        raise ValueError("Median step time must be positive")
+    return median_step_ms, p95_step_ms
+
+
+def scaling_metrics(*, context_length: int, batch_size: int, log: str) -> ScalingBenchmarkMetrics:
+    """Derive token throughput from synchronized median successful-step latency."""
+    median_step_ms, p95_step_ms = parse_profile_step_times(log)
+    tokens_per_step = batch_size * context_length
+    median_tokens_per_sec = tokens_per_step / (median_step_ms / 1000.0)
+    return ScalingBenchmarkMetrics(
+        context_length=context_length,
+        batch_size=batch_size,
+        tokens_per_step=tokens_per_step,
+        median_step_ms=median_step_ms,
+        p95_step_ms=p95_step_ms,
+        median_tokens_per_sec=median_tokens_per_sec,
+    )
+
+
+def relative_scaling_throughput(
+    results: list[ScalingBenchmarkMetrics],
+    *,
+    baseline_context: int = 128,
+    baseline_batch: int = 16,
+) -> dict[tuple[int, int], float]:
+    """Normalize synchronized throughput to the configured baseline workload."""
+    baseline = next(
+        (
+            result
+            for result in results
+            if result.context_length == baseline_context and result.batch_size == baseline_batch
+        ),
+        None,
+    )
+    if baseline is None:
+        return {}
+    return {
+        (result.context_length, result.batch_size): (
+            result.median_tokens_per_sec / baseline.median_tokens_per_sec
+        )
         for result in results
     }

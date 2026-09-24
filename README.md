@@ -98,6 +98,18 @@ poetry run python train.py --config configs/benchmarks/profile-fp32.yaml
 Profiling mode synchronizes around each component for diagnostic accuracy, so its
 throughput should not be compared directly with the normal precision benchmark.
 
+## Stage 5.2 batch/context scaling
+
+Run the synchronized FP32 workload matrix with:
+
+```bash
+poetry run python scripts/benchmark_scaling.py
+```
+
+This compares batch/context scaling to study MPS utilization and quadratic
+attention-cost growth. Throughput is derived as tokens per step divided by
+synchronized median step time; raw logs remain local under `benchmarks/scaling/`.
+
 Or activate the Poetry environment for the current shell:
 
 ```bash

@@ -1,0 +1,33 @@
+seed: 42
+device: auto
+
+data:
+  dataset_name: karpathy/tinystories-gpt4-clean
+  tokenizer_repo: fracagnetta/tinystories.BPE8192
+  train_stories: 2000
+  val_stories: 200
+  context_length: 128
+  batch_size: 32
+  num_workers: 0
+  pin_memory: false
+
+model:
+  d_model: 128
+  n_heads: 4
+  d_ff: 512
+  n_layers: 4
+
+training:
+  steps: 150
+  learning_rate: 0.0003
+  weight_decay: 0.01
+  precision: fp32
+  grad_accum_steps: 1
+  max_grad_norm: 1.0
+  log_interval: 50
+  eval_interval: 1000000
+  eval_batches: 10
+  checkpoint_interval: 150
+  checkpoint_dir: checkpoints/benchmarks/scaling/context128-batch32
+  profile_timing: true
+  profile_warmup_steps: 10
