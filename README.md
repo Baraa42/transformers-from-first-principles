@@ -24,7 +24,7 @@ A minimal, research-friendly project for building a decoder-only Transformer man
 
 ### Later systems experiments
 
-- KV cache, profiling, batching, `torch.compile`, quantization, and serving
+- KV cache, operator-level profiling, batching, `torch.compile`, quantization, and serving
 
 ## Model and training path
 
@@ -47,7 +47,7 @@ TinyStories
 ```
 
 The model returns raw logits; loss remains outside `TinyDecoderLM.forward()`.
-The current training system includes optional mixed precision; schedulers/warmup, distributed training, KV cache, and profiling remain out of scope.
+The current training system includes optional mixed precision and opt-in manual timing diagnostics; schedulers/warmup, distributed training, and KV cache remain out of scope.
 
 ## Setup and commands
 
@@ -86,6 +86,17 @@ poetry run python scripts/benchmark_precision.py
 Raw logs are written to `benchmarks/precision/` and remain local. Reported total
 wall time includes the training loop, validation, and checkpoint writes; model,
 tokenizer, and dataset setup are excluded.
+
+## Stage 5.1 timing diagnostics
+
+Run the first decomposed FP32 timing experiment with:
+
+```bash
+poetry run python train.py --config configs/benchmarks/profile-fp32.yaml
+```
+
+Profiling mode synchronizes around each component for diagnostic accuracy, so its
+throughput should not be compared directly with the normal precision benchmark.
 
 Or activate the Poetry environment for the current shell:
 

@@ -177,6 +177,21 @@ def validate_precision_support(device: torch.device, precision: str) -> None:
         raise ValueError(f"{precision} AMP is unsupported on {device.type}: {error}") from error
 
 
+def prepare_gradients(
+    *,
+    model: torch.nn.Module,
+    optimizer: torch.optim.Optimizer,
+    precision: str,
+    scaler: torch.amp.GradScaler | None,
+    max_grad_norm: float | None,
+) -> float:
+    """Unscale FP16 gradients, then measure/clip the global gradient norm."""
+    validate_precision_state(precision, scaler)
+    if precision == "fp16":
+        scaler.unscale_(optimizer)
+    return clip_or_measure_grad_norm(model, max_grad_norm)
+
+
 def complete_optimizer_step(
     *,
     model: torch.nn.Module,
@@ -186,10 +201,13 @@ def complete_optimizer_step(
     max_grad_norm: float | None,
 ) -> tuple[float, bool]:
     """Unscale, measure/clip once, and perform exactly one optimizer attempt."""
-    validate_precision_state(precision, scaler)
-    if precision == "fp16":
-        scaler.unscale_(optimizer)
-    grad_norm = clip_or_measure_grad_norm(model, max_grad_norm)
+    grad_norm = prepare_gradients(
+        model=model,
+        optimizer=optimizer,
+        precision=precision,
+        scaler=scaler,
+        max_grad_norm=max_grad_norm,
+    )
     did_step = optimizer_step(precision=precision, optimizer=optimizer, scaler=scaler)
     return grad_norm, did_step
 

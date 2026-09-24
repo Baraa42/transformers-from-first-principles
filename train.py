@@ -14,14 +14,23 @@ from transformers_from_scratch.data import (
     tokenize_stories,
 )
 from transformers_from_scratch.model import TinyDecoderLM
+from transformers_from_scratch.profiling import (
+    TimingProfile,
+    print_timing_summary,
+    start_timer,
+    stop_timer,
+    timed_section,
+    validate_profile_config,
+)
 from transformers_from_scratch.training import (
     autocast_context,
     causal_lm_loss,
-    complete_optimizer_step,
     create_grad_scaler,
     evaluate,
     infinite_batches,
     load_config,
+    optimizer_step,
+    prepare_gradients,
     resolve_device,
     set_seed,
     synchronize_device,
@@ -99,6 +108,12 @@ def main() -> None:
         raise ValueError("max_grad_norm must be strictly positive or null")
 
     grad_accum_steps = validate_grad_accum_steps(training_config.get("grad_accum_steps", 1))
+    profile_timing, profile_warmup_steps = validate_profile_config(
+        training_config.get("profile_timing", False),
+        training_config.get("profile_warmup_steps", 10),
+    )
+    timing_profile = TimingProfile(profile_timing, profile_warmup_steps)
+
     # 8. Load/tokenize data only after resume compatibility and RNG restoration succeed.
     train_text, val_text = load_tinystories_text_splits(
         data_config["dataset_name"], data_config["train_stories"], data_config["val_stories"]
@@ -146,42 +161,60 @@ def main() -> None:
     step = start_step
     while step < target_step:
         model.train()
-        optimizer.zero_grad()
+        step_timings: dict[str, float] | None = {} if profile_timing else None
+        step_started_at = start_timer(device, enabled=profile_timing)
 
-        # 11.1 Accumulate N scaled or unscaled microbatch gradients.
+        with timed_section("zero_grad", step_timings, device, enabled=profile_timing):
+            optimizer.zero_grad()
+
+        # 11.1 Accumulate N microbatches into one optimizer/global-step attempt.
         step_loss = 0.0
         for _ in range(grad_accum_steps):
-            input_ids, targets = next(batches)
-            input_ids, targets = input_ids.to(device), targets.to(device)
-            with autocast_context(device, precision):
-                loss = causal_lm_loss(model(input_ids), targets)
+            with timed_section("batch_fetch", step_timings, device, enabled=profile_timing):
+                input_ids, targets = next(batches)
+            with timed_section("host_to_device", step_timings, device, enabled=profile_timing):
+                input_ids, targets = input_ids.to(device), targets.to(device)
+            with timed_section("forward_loss", step_timings, device, enabled=profile_timing):
+                with autocast_context(device, precision):
+                    loss = causal_lm_loss(model(input_ids), targets)
             step_loss += loss.item()
-            scaled_loss = loss / grad_accum_steps
-            if precision == "fp16":
-                scaler.scale(scaled_loss).backward()
-            else:
-                scaled_loss.backward()
+            with timed_section("backward", step_timings, device, enabled=profile_timing):
+                scaled_loss = loss / grad_accum_steps
+                if precision == "fp16":
+                    scaler.scale(scaled_loss).backward()
+                else:
+                    scaled_loss.backward()
             log_tokens += input_ids.numel()
 
-        # 11.2 Unscale, measure/clip, and attempt exactly one optimizer update.
+        # 11.2 Process accumulated gradients once, then attempt one optimizer update.
         old_scale = scaler.get_scale() if precision == "fp16" else None
-        grad_norm, did_step = complete_optimizer_step(
-            model=model,
-            optimizer=optimizer,
-            precision=precision,
-            scaler=scaler,
-            max_grad_norm=max_grad_norm,
-        )
+        with timed_section("grad_processing", step_timings, device, enabled=profile_timing):
+            grad_norm = prepare_gradients(
+                model=model,
+                optimizer=optimizer,
+                precision=precision,
+                scaler=scaler,
+                max_grad_norm=max_grad_norm,
+            )
+        with timed_section("optimizer_step", step_timings, device, enabled=profile_timing):
+            did_step = optimizer_step(
+                precision=precision,
+                optimizer=optimizer,
+                scaler=scaler,
+            )
+        step_time = stop_timer(step_started_at, device, enabled=profile_timing)
         grad_clipped = max_grad_norm is not None and grad_norm > max_grad_norm
         if not did_step:
             amp_overflow_count += 1
             print(f"amp_overflow=true old_scale={old_scale:.0f} new_scale={scaler.get_scale():.0f}")
-            # Skipped-attempt tokens remain in throughput: hardware processed them.
+            # Skipped attempts are timed but excluded from successful-step distributions.
             continue
 
         step += 1
+        if profile_timing:
+            timing_profile.record_successful_step(step_timings, step_time)
 
-        # 11.4 Log mean unscaled loss and all consumed microbatch tokens.
+        # 11.3 Log mean unscaled loss and all consumed microbatch tokens.
         if step % training_config["log_interval"] == 0:
             synchronize_device(device)
             elapsed = time.perf_counter() - log_start
@@ -193,20 +226,42 @@ def main() -> None:
             )
             synchronize_device(device)
             log_start, log_tokens = time.perf_counter(), 0
+
+        # 11.4 Validation and checkpoint timings are separate from train-step samples.
         if step % training_config["eval_interval"] == 0:
-            metrics = evaluate(
-                model, val_loader, device, training_config["eval_batches"], precision
+            validation_timing: dict[str, float] | None = {} if profile_timing else None
+            with timed_section("validation", validation_timing, device, enabled=profile_timing):
+                metrics = evaluate(
+                    model, val_loader, device, training_config["eval_batches"], precision
+                )
+            timing_profile.record_event(
+                "validation",
+                validation_timing.get("validation") if validation_timing is not None else None,
             )
             print(
                 f"step={step} val_loss={metrics['loss']:.4f} "
                 f"val_perplexity={metrics['perplexity']:.2f}"
             )
         if step % checkpoint_interval == 0:
-            print(f"checkpoint={save_training_checkpoint(step=step, **checkpoint_args)}")
+            checkpoint_timing: dict[str, float] | None = {} if profile_timing else None
+            with timed_section("checkpoint", checkpoint_timing, device, enabled=profile_timing):
+                checkpoint_path = save_training_checkpoint(step=step, **checkpoint_args)
+            timing_profile.record_event(
+                "checkpoint",
+                checkpoint_timing.get("checkpoint") if checkpoint_timing is not None else None,
+            )
+            print(f"checkpoint={checkpoint_path}")
 
     # 12. If no periodic save landed on the target, save the final state once.
     if target_step % checkpoint_interval != 0:
-        print(f"checkpoint={save_training_checkpoint(step=target_step, **checkpoint_args)}")
+        checkpoint_timing = {} if profile_timing else None
+        with timed_section("checkpoint", checkpoint_timing, device, enabled=profile_timing):
+            checkpoint_path = save_training_checkpoint(step=target_step, **checkpoint_args)
+        timing_profile.record_event(
+            "checkpoint",
+            checkpoint_timing.get("checkpoint") if checkpoint_timing is not None else None,
+        )
+        print(f"checkpoint={checkpoint_path}")
 
     # 13. Report synchronized loop time and precision-specific scaler diagnostics.
     synchronize_device(device)
@@ -214,6 +269,7 @@ def main() -> None:
     final_grad_scale = f"{scaler.get_scale():g}" if precision == "fp16" else "none"
     print(f"training_wall_time_sec={training_wall_time:.3f}")
     print(f"amp_overflow_count={amp_overflow_count} final_grad_scale={final_grad_scale}")
+    print_timing_summary(timing_profile)
 
 
 if __name__ == "__main__":
