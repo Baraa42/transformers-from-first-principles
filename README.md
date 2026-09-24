@@ -110,6 +110,28 @@ This compares batch/context scaling to study MPS utilization and quadratic
 attention-cost growth. Throughput is derived as tokens per step divided by
 synchronized median step time; raw logs remain local under `benchmarks/scaling/`.
 
+## Performance findings
+
+For the measured tiny model on Apple MPS:
+
+- FP16 was slower because scaler and gradient-processing overhead dominated its savings.
+- BF16 was roughly neutral to slightly faster in steady-state training.
+- Larger batches significantly improved accelerator utilization.
+- The input pipeline was not the current bottleneck.
+- Longer contexts improved utilization through 256 tokens, while equal-token comparisons
+  began to expose the quadratic attention penalty.
+
+See [Training Performance Notes](docs/performance.md) for methodology, benchmark tables,
+and detailed findings.
+
+Benchmark commands:
+
+```bash
+poetry run python scripts/benchmark_precision.py
+poetry run python train.py --config configs/benchmarks/profile-fp32.yaml
+poetry run python scripts/benchmark_scaling.py
+```
+
 Or activate the Poetry environment for the current shell:
 
 ```bash
