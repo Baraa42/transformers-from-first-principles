@@ -110,6 +110,18 @@ This compares batch/context scaling to study MPS utilization and quadratic
 attention-cost growth. Throughput is derived as tokens per step divided by
 synchronized median step time; raw logs remain local under `benchmarks/scaling/`.
 
+## Stage 5.3 operator profiling
+
+Run the lightweight operator-level diagnostic with:
+
+```bash
+poetry run python scripts/profile_training_ops.py
+```
+
+The profiler is intended to confirm the dominant compute and synchronization patterns
+identified by manual timing. Add `--export-trace` to optionally write a Chrome trace
+under the ignored `benchmarks/profiler/` directory.
+
 ## Performance findings
 
 For the measured tiny model on Apple MPS:
