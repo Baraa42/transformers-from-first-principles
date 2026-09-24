@@ -181,3 +181,154 @@ contexts also improve utilization through 256 tokens, although equal-token compa
 the quadratic attention penalty beginning to emerge. FP16 is counterproductive for this
 workload because GradScaler/unscale overhead dominates its compute savings; BF16 is the
 cleaner mixed-precision mode and provides a small steady-state improvement.
+
+## Stage 5.3 — Operator profiling and profiler-guided optimization
+
+The operator-level baseline used FP32, context length 128, batch size 16, five warmup
+steps, and 15 profiled steps. On Apple MPS, `torch.profiler` exposed CPU-side operator
+activity rather than direct MPS kernel timing.
+
+> CPU profiler attribution on MPS should not be interpreted as direct device-kernel
+> execution time. Synchronization or waiting can be charged to the CPU operation that
+> forces previously queued device work to complete.
+
+### Initial operator-profiler finding
+
+The initial profile reported:
+
+```text
+aten::_local_scalar_dense
+30 calls across 15 profiled steps
+134.443 ms self CPU
+55.52% self CPU
+```
+
+Thirty calls over 15 steps is exactly two scalar reads per training step. They corresponded
+to:
+
+```python
+loss.item()
+clip_grad_norm_(...).item()
+```
+
+This did not mean scalar conversion itself required approximately 9 ms of computation per
+step. Instead, these device-to-host reads acted as synchronization boundaries, so their CPU
+attribution included time spent waiting for earlier queued MPS work to complete.
+
+### Fused AdamW
+
+The original synchronized FP32 baseline and the result after selecting fused AdamW on MPS
+were:
+
+| Metric          |  Original | Fused AdamW |
+| --------------- | --------: | ----------: |
+| median step     | 20.699 ms |   18.068 ms |
+| p95 step        | 21.986 ms |   18.852 ms |
+| optimizer_step  |  3.154 ms |    1.326 ms |
+| grad_processing |  3.890 ms |    3.793 ms |
+| forward_loss    |  4.971 ms |    4.721 ms |
+| backward        |  7.600 ms |    7.240 ms |
+| wall time       |   3.431 s |     2.977 s |
+
+Measured changes were approximately:
+
+```text
+optimizer_step: 3.154 -> 1.326 ms  (~58% reduction)
+median step:    20.699 -> 18.068 ms (~12.7% reduction)
+wall time:       3.431 -> 2.977 s   (~13.2% reduction)
+```
+
+Optimizer cost was a substantial fixed overhead for this tiny model, and fused AdamW
+materially reduced it. Other major components remained broadly similar. Identical logged
+losses showed that training behavior was preserved, although not every residual
+run-to-run difference should be attributed to AdamW alone.
+
+### Deferred host scalar reads
+
+The next optimization stopped calling `loss.item()` every training step, retained detached
+loss tensors only when logging was due, kept the gradient norm as a device scalar, and
+converted loss and norm to Python only at logging boundaries. Gradient clipping continued
+to run on every optimizer step.
+
+After this change, `aten::_local_scalar_dense` was no longer among the dominant
+profiled-loop operators. The top CPU-side entry became:
+
+```text
+aten::copy_
+30 calls across 15 profiled steps
+```
+
+That call count is consistent with two host-to-device input transfers per step. Its large
+CPU attribution should not be interpreted as true transfer latency: after removing earlier
+scalar synchronization, waiting can move to a later operation that becomes the next
+completion boundary. The synchronized Stage 5.1 measurements continued to show that
+host-to-device transfer was only a small fraction of step time.
+
+### Final synchronized baseline
+
+After fused AdamW and deferred host scalar reads, the synchronized FP32 baseline measured:
+
+| Metric          |     Final |
+| --------------- | --------: |
+| median step     | 16.745 ms |
+| p95 step        | 17.166 ms |
+| wall time       |   2.755 s |
+| zero_grad       |  0.024 ms |
+| batch_fetch     |  0.128 ms |
+| host_to_device  |  0.348 ms |
+| forward_loss    |  4.417 ms |
+| backward        |  6.974 ms |
+| grad_processing |  3.590 ms |
+| optimizer_step  |  1.215 ms |
+
+Logged throughput was:
+
+```text
+step 50  = 109,783 tok/s
+step 100 = 121,379 tok/s
+step 150 = 114,845 tok/s
+```
+
+Training losses remained:
+
+```text
+step 50  train_loss=6.4355
+step 100 train_loss=5.4658
+step 150 train_loss=5.0278
+```
+
+Validation remained:
+
+```text
+step 100 val_loss=5.8570
+val_perplexity=349.66
+```
+
+### Optimization summary
+
+| Metric          |  Original | Fused AdamW |     Final |
+| --------------- | --------: | ----------: | --------: |
+| Median step     | 20.699 ms |   18.068 ms | 16.745 ms |
+| p95 step        | 21.986 ms |   18.852 ms | 17.166 ms |
+| Optimizer       |  3.154 ms |    1.326 ms |  1.215 ms |
+| Grad processing |  3.890 ms |    3.793 ms |  3.590 ms |
+| Wall time       |   3.431 s |     2.977 s |   2.755 s |
+
+From the original to the final baseline, median synchronized step time fell from 20.699 ms
+to 16.745 ms, an approximate 19.1% reduction. Wall time fell from 3.431 s to 2.755 s,
+approximately 19.7%, while optimizer-step time fell from 3.154 ms to 1.215 ms,
+approximately 61.5%.
+
+## Final Stage 5 systems diagnosis
+
+The initial tiny-model workload under-utilized Apple MPS and carried substantial fixed
+parameter-side overhead. Batch scaling improved utilization by amortizing those costs.
+Operator profiling then exposed CPU synchronization and optimizer overhead that were not
+obvious from coarse timing alone. Switching to fused AdamW materially reduced optimizer
+cost, and deferring unnecessary device-to-host scalar reads yielded an additional
+end-to-end gain. Across the full Stage 5 optimization sequence, median synchronized step
+time improved by roughly 19% while training metrics remained unchanged.
+
+On asynchronous accelerators, CPU profiler attribution must be interpreted carefully:
+operations such as scalar reads or copies may appear expensive because they become
+synchronization boundaries for previously queued device work.

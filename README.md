@@ -24,7 +24,7 @@ A minimal, research-friendly project for building a decoder-only Transformer man
 
 ### Later systems experiments
 
-- KV cache, operator-level profiling, batching, `torch.compile`, quantization, and serving
+- KV cache, batching, `torch.compile`, quantization, and serving
 
 ## Model and training path
 
@@ -132,6 +132,13 @@ For the measured tiny model on Apple MPS:
 - The input pipeline was not the current bottleneck.
 - Longer contexts improved utilization through 256 tokens, while equal-token comparisons
   began to expose the quadratic attention penalty.
+- Fused MPS AdamW substantially reduced optimizer overhead.
+- Deferring unnecessary `.item()` synchronization improved end-to-end training further.
+- Original-to-final synchronized median step time improved by approximately 19%.
+
+Stage 5 training performance work is complete. Operator profiling on MPS was useful for
+identifying synchronization boundaries, but its CPU attribution is not direct device-kernel
+timing.
 
 See [Training Performance Notes](docs/performance.md) for methodology, benchmark tables,
 and detailed findings.
@@ -142,6 +149,7 @@ Benchmark commands:
 poetry run python scripts/benchmark_precision.py
 poetry run python train.py --config configs/benchmarks/profile-fp32.yaml
 poetry run python scripts/benchmark_scaling.py
+poetry run python scripts/profile_training_ops.py
 ```
 
 Or activate the Poetry environment for the current shell:
