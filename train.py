@@ -21,6 +21,7 @@ from transformers_from_scratch.profiling import (
     validate_profile_config,
 )
 from transformers_from_scratch.training import (
+    accumulate_logging_loss,
     autocast_context,
     causal_lm_loss,
     configure_adamw_backend,
@@ -171,7 +172,7 @@ def main() -> None:
             optimizer.zero_grad()
 
         # 11.1 Accumulate N microbatches into one optimizer/global-step attempt.
-        step_loss = 0.0
+        step_loss = None
         for _ in range(grad_accum_steps):
             with timed_section("batch_fetch", step_timings, device, enabled=profile_timing):
                 input_ids, targets = next(batches)
@@ -180,7 +181,8 @@ def main() -> None:
             with timed_section("forward_loss", step_timings, device, enabled=profile_timing):
                 with autocast_context(device, precision):
                     loss = causal_lm_loss(model(input_ids), targets)
-            step_loss += loss.item()
+            if should_log:
+                step_loss = accumulate_logging_loss(step_loss, loss)
             with timed_section("backward", step_timings, device, enabled=profile_timing):
                 scaled_loss = loss / grad_accum_steps
                 if precision == "fp16":
@@ -224,10 +226,13 @@ def main() -> None:
             lr = optimizer.param_groups[0]["lr"]
             if grad_norm is None:
                 raise RuntimeError("Gradient norm was not measured for a logging step")
+            if step_loss is None:
+                raise RuntimeError("Training loss was not retained for a logging step")
+            train_loss = (step_loss / grad_accum_steps).item()
             grad_norm_value = grad_norm.item()
             grad_clipped = max_grad_norm is not None and grad_norm_value > max_grad_norm
             print(
-                f"step={step} train_loss={step_loss / grad_accum_steps:.4f} lr={lr:.2e} "
+                f"step={step} train_loss={train_loss:.4f} lr={lr:.2e} "
                 f"grad_norm={grad_norm_value:.4f} grad_clipped={grad_clipped} "
                 f"tokens_per_sec={log_tokens / elapsed:.0f}"
             )

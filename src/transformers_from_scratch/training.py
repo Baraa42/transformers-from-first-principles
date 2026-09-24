@@ -25,6 +25,15 @@ def causal_lm_loss(logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
     return F.cross_entropy(logits.reshape(-1, logits.shape[-1]), targets.reshape(-1))
 
 
+def accumulate_logging_loss(
+    accumulated_loss: torch.Tensor | None,
+    loss: torch.Tensor,
+) -> torch.Tensor:
+    """Add one detached microbatch loss for an upcoming log record."""
+    detached_loss = loss.detach()
+    return detached_loss if accumulated_loss is None else accumulated_loss + detached_loss
+
+
 def infinite_batches(loader: Iterable[Any]) -> Iterator[Any]:
     """Yield loader batches forever, recreating its iterator after each epoch."""
     while True:

@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader, TensorDataset
 import transformers_from_scratch.training as training
 from transformers_from_scratch.model import TinyDecoderLM
 from transformers_from_scratch.training import (
+    accumulate_logging_loss,
     autocast_context,
     causal_lm_loss,
     clip_or_measure_grad_norm,
@@ -63,6 +64,23 @@ def test_causal_lm_loss_is_finite_scalar_and_differentiable() -> None:
     assert loss.ndim == 0 and torch.isfinite(loss)
     loss.backward()
     assert logits.grad is not None and torch.isfinite(logits.grad).all()
+
+
+def test_logging_loss_accumulation_is_detached_and_preserves_microbatch_mean() -> None:
+    losses = [
+        torch.tensor(2.0, requires_grad=True),
+        torch.tensor(4.0, requires_grad=True),
+        torch.tensor(9.0, requires_grad=True),
+    ]
+    accumulated_loss = None
+
+    for loss in losses:
+        accumulated_loss = accumulate_logging_loss(accumulated_loss, loss)
+
+    assert accumulated_loss is not None
+    assert not accumulated_loss.requires_grad
+    assert accumulated_loss.grad_fn is None
+    assert (accumulated_loss / len(losses)).item() == pytest.approx(5.0)
 
 
 def test_evaluate_restores_training_mode_and_returns_metrics() -> None:

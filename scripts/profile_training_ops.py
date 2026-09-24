@@ -66,15 +66,15 @@ def run_training_step(
     device: torch.device,
     precision: str,
     max_grad_norm: float | None,
-) -> float:
-    """Run one real FP32 optimizer step and return its scalar loss."""
+) -> torch.Tensor:
+    """Run one real FP32 optimizer step and return its detached scalar loss."""
     model.train()
     optimizer.zero_grad()
     input_ids, targets = next(batches)
     input_ids, targets = input_ids.to(device), targets.to(device)
     with autocast_context(device, precision):
         loss = causal_lm_loss(model(input_ids), targets)
-    loss_value = loss.item()
+    loss_tensor = loss.detach()
     loss.backward()
     prepare_gradients(
         model=model,
@@ -87,7 +87,7 @@ def run_training_step(
     did_step = optimizer_step(precision=precision, optimizer=optimizer, scaler=None)
     if not did_step:
         raise RuntimeError("FP32 optimizer step was unexpectedly skipped")
-    return loss_value
+    return loss_tensor
 
 
 def main() -> None:
@@ -156,11 +156,14 @@ def main() -> None:
         profile_memory=True,
         with_stack=False,
     ) as profiler:
-        final_loss = 0.0
+        final_loss = None
         for _ in range(args.profile_steps):
             final_loss = run_training_step(**step_args)
             profiler.step()
     synchronize_device(device)
+    if final_loss is None:
+        raise RuntimeError("Profiler produced no training loss")
+    final_loss_value = final_loss.item()
 
     sort_key = "self_cuda_time_total" if device.type == "cuda" else "self_cpu_time_total"
     activity_names = ",".join(str(activity).rsplit(".", 1)[-1].lower() for activity in activities)
@@ -168,7 +171,7 @@ def main() -> None:
     if device.type == "mps":
         print("mps_device_activity=unavailable; table reports CPU-side operator activity")
     print(f"sort_by={sort_key}")
-    print(f"final_profiled_loss={final_loss:.4f}")
+    print(f"final_profiled_loss={final_loss_value:.4f}")
     print()
     print(
         profiler.key_averages(group_by_input_shape=True).table(
