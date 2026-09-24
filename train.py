@@ -4,8 +4,6 @@ import argparse
 import time
 from pathlib import Path
 
-import torch
-
 from transformers_from_scratch.checkpointing import load_checkpoint, save_training_checkpoint
 from transformers_from_scratch.data import (
     create_dataloaders,
@@ -25,6 +23,8 @@ from transformers_from_scratch.profiling import (
 from transformers_from_scratch.training import (
     autocast_context,
     causal_lm_loss,
+    configure_adamw_backend,
+    create_adamw_optimizer,
     create_grad_scaler,
     evaluate,
     infinite_batches,
@@ -75,10 +75,11 @@ def main() -> None:
 
     # 5. Build fresh model/optimizer objects. A resume below replaces their saved state.
     model = TinyDecoderLM(vocab_size=tokenizer.get_vocab_size(), **model_config).to(device)
-    optimizer = torch.optim.AdamW(
+    optimizer = create_adamw_optimizer(
         model.parameters(),
-        lr=training_config["learning_rate"],
+        learning_rate=training_config["learning_rate"],
         weight_decay=training_config["weight_decay"],
+        device=device,
     )
     # 6. Optionally restore model, AdamW, global step, and RNG from a checkpoint.
     # Fresh runs start at global step 0. Resumed runs continue at N + 1.
@@ -95,6 +96,7 @@ def main() -> None:
             scaler=scaler,
         )
         start_step = checkpoint["step"]
+        configure_adamw_backend(optimizer, device)
         print(f"resuming_from={args.resume}")
         print(f"start_step={start_step}")
     # 7. Confirm there is work left: ``steps`` is a final global step, not extra steps.

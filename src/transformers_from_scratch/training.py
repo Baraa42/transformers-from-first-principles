@@ -65,13 +65,19 @@ def evaluate(
 
 
 def global_grad_norm(model: torch.nn.Module) -> float:
-    """Compute the global L2 norm of available gradients for logging only."""
-    squared_norm = sum(
-        gradient.detach().pow(2).sum().item()
+    """Compute the global L2 norm with one host scalar read for logging."""
+    gradients = [
+        gradient.detach()
         for parameter in model.parameters()
         if (gradient := parameter.grad) is not None
-    )
-    return math.sqrt(squared_norm)
+    ]
+    if not gradients:
+        return 0.0
+
+    squared_norm = torch.zeros((), device=gradients[0].device, dtype=torch.float32)
+    for gradient in gradients:
+        squared_norm.add_(gradient.float().square().sum().to(device=squared_norm.device))
+    return squared_norm.sqrt().item()
 
 
 def clip_or_measure_grad_norm(model: torch.nn.Module, max_grad_norm: float | None) -> float:
@@ -227,6 +233,36 @@ def optimizer_step(*, precision: str, optimizer: torch.optim.Optimizer, scaler: 
 def scaler_step_was_skipped(old_scale: float, new_scale: float) -> bool:
     """Use public GradScaler scale backoff as the overflow/skip signal."""
     return new_scale < old_scale
+
+
+def configure_adamw_backend(
+    optimizer: torch.optim.AdamW,
+    device: torch.device,
+) -> None:
+    """Use fused AdamW on MPS to avoid per-parameter host scalar reads."""
+    if device.type != "mps":
+        return
+    for group in optimizer.param_groups:
+        group["foreach"] = False
+        group["fused"] = True
+
+
+def create_adamw_optimizer(
+    parameters: Iterable[torch.nn.Parameter],
+    *,
+    learning_rate: float,
+    weight_decay: float,
+    device: torch.device,
+) -> torch.optim.AdamW:
+    """Create AdamW with the efficient supported implementation for the backend."""
+    optimizer = torch.optim.AdamW(
+        parameters,
+        lr=learning_rate,
+        weight_decay=weight_decay,
+        fused=device.type == "mps",
+    )
+    configure_adamw_backend(optimizer, device)
+    return optimizer
 
 
 def set_seed(seed: int) -> None:

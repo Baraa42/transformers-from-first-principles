@@ -11,6 +11,7 @@ from transformers_from_scratch.training import (
     autocast_context,
     causal_lm_loss,
     clip_or_measure_grad_norm,
+    create_adamw_optimizer,
     create_grad_scaler,
     evaluate,
     global_grad_norm,
@@ -81,6 +82,42 @@ def test_global_grad_norm_is_positive_after_backward() -> None:
     loss = causal_lm_loss(model(torch.randint(0, 10, (2, 3))), torch.randint(0, 10, (2, 3)))
     loss.backward()
     assert global_grad_norm(model) > 0
+
+
+def test_global_grad_norm_uses_one_host_scalar_read() -> None:
+    model = torch.nn.Sequential(
+        torch.nn.Linear(2, 2),
+        torch.nn.Linear(2, 1),
+    )
+    model(torch.ones(1, 2)).sum().backward()
+
+    with torch.profiler.profile(activities=[torch.profiler.ProfilerActivity.CPU]) as profiler:
+        norm = global_grad_norm(model)
+
+    scalar_reads = sum(
+        event.count for event in profiler.key_averages() if event.key == "aten::_local_scalar_dense"
+    )
+    assert norm > 0
+    assert scalar_reads == 1
+
+
+def test_adamw_backend_selection_enables_fused_only_for_mps() -> None:
+    mps_optimizer = create_adamw_optimizer(
+        torch.nn.Linear(1, 1).parameters(),
+        learning_rate=0.001,
+        weight_decay=0.01,
+        device=torch.device("mps"),
+    )
+    cpu_optimizer = create_adamw_optimizer(
+        torch.nn.Linear(1, 1).parameters(),
+        learning_rate=0.001,
+        weight_decay=0.01,
+        device=torch.device("cpu"),
+    )
+
+    assert mps_optimizer.param_groups[0]["fused"] is True
+    assert mps_optimizer.param_groups[0]["foreach"] is False
+    assert cpu_optimizer.param_groups[0]["fused"] is False
 
 
 def test_clipping_below_threshold_leaves_gradients_unchanged() -> None:

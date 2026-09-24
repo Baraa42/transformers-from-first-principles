@@ -20,6 +20,7 @@ from transformers_from_scratch.profiler_tools import (
 from transformers_from_scratch.training import (
     autocast_context,
     causal_lm_loss,
+    create_adamw_optimizer,
     infinite_batches,
     load_config,
     optimizer_step,
@@ -123,10 +124,11 @@ def main() -> None:
     batches = infinite_batches(train_loader)
 
     model = TinyDecoderLM(vocab_size=tokenizer.get_vocab_size(), **model_config).to(device)
-    optimizer = torch.optim.AdamW(
+    optimizer = create_adamw_optimizer(
         model.parameters(),
-        lr=training_config["learning_rate"],
+        learning_rate=training_config["learning_rate"],
         weight_decay=training_config["weight_decay"],
+        device=device,
     )
     step_args = {
         "model": model,
