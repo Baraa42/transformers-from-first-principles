@@ -120,6 +120,43 @@ def test_adamw_backend_selection_enables_fused_only_for_mps() -> None:
     assert cpu_optimizer.param_groups[0]["fused"] is False
 
 
+@pytest.mark.skipif(
+    not torch.backends.mps.is_available(),
+    reason="MPS is unavailable",
+)
+def test_fused_adamw_runs_real_mps_step() -> None:
+    device = torch.device("mps")
+    model = torch.nn.Linear(2, 2).to(device)
+    optimizer = create_adamw_optimizer(
+        model.parameters(),
+        learning_rate=1e-3,
+        weight_decay=0.01,
+        device=device,
+    )
+    before = [parameter.detach().clone() for parameter in model.parameters()]
+
+    optimizer.zero_grad()
+    loss = model(torch.ones(2, 2, device=device)).square().mean()
+    loss.backward()
+    optimizer.step()
+
+    assert optimizer.param_groups[0]["fused"] is True
+    assert optimizer.param_groups[0]["foreach"] is False
+    assert all(parameter.device.type == "mps" for parameter in model.parameters())
+    assert any(
+        not torch.equal(before_parameter, after_parameter)
+        for before_parameter, after_parameter in zip(
+            before,
+            model.parameters(),
+            strict=True,
+        )
+    )
+
+    for state in optimizer.state.values():
+        assert state["exp_avg"].device.type == "mps"
+        assert state["exp_avg_sq"].device.type == "mps"
+
+
 def test_clipping_below_threshold_leaves_gradients_unchanged() -> None:
     model = torch.nn.Linear(2, 1, bias=False)
     model.weight.grad = torch.tensor([[3.0, 4.0]])
