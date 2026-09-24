@@ -22,9 +22,26 @@ A minimal, research-friendly project for building a decoder-only Transformer man
 - `precision: fp32 | fp16 | bf16` in the training config
 - FP16 uses GradScaler; BF16 and FP16 availability is verified on the selected backend
 
+### Stage 5 — Training performance diagnostics
+
+- Synchronized step decomposition
+- Batch/context scaling
+- Operator-level profiling
+- Fused AdamW on Apple MPS
+- Deferred device-to-host scalar reads
+- Approximately 19% reduction in synchronized median step time
+
+### Stage 6 — Inference systems
+
+- Baseline autoregressive decoding
+- Prefill vs decode profiling
+- KV cache from first principles
+- Cached vs uncached benchmarks
+- Batching and latency/throughput trade-offs
+
 ### Later systems experiments
 
-- KV cache, batching, `torch.compile`, quantization, and serving
+- `torch.compile`, quantization, and serving
 
 ## Model and training path
 
@@ -47,7 +64,9 @@ TinyStories
 ```
 
 The model returns raw logits; loss remains outside `TinyDecoderLM.forward()`.
-The current training system includes optional mixed precision and opt-in manual timing diagnostics; schedulers/warmup, distributed training, and KV cache remain out of scope.
+The current training system includes optional mixed precision and opt-in manual timing
+diagnostics. Schedulers/warmup and distributed training remain out of scope; KV-cached
+autoregressive inference is the next systems block.
 
 ## Setup and commands
 

@@ -192,9 +192,36 @@ activity rather than direct MPS kernel timing.
 > execution time. Synchronization or waiting can be charged to the CPU operation that
 > forces previously queued device work to complete.
 
-### Initial operator-profiler finding
+### Scalar-synchronization progression
 
-The initial profile reported:
+#### Initial implementation
+
+The original profiler run reported:
+
+```text
+aten::_local_scalar_dense
+810 calls across 15 profiled steps
+```
+
+That is 54 scalar reads per step:
+
+```text
+810 / 15 = 54
+```
+
+The source was the original global-gradient-norm implementation, which performed a host
+scalar extraction for every gradient-bearing parameter, effectively calling:
+
+```python
+gradient.detach().pow(2).sum().item()
+```
+
+inside a loop over model parameters. On MPS, each repeated `.item()` created a
+device-to-host synchronization boundary.
+
+#### After moving global-norm reduction on-device
+
+After reducing the global gradient norm on-device, the profile reported:
 
 ```text
 aten::_local_scalar_dense
@@ -211,11 +238,25 @@ loss.item()
 clip_grad_norm_(...).item()
 ```
 
-This did not mean scalar conversion itself required approximately 9 ms of computation per
-step. Instead, these device-to-host reads acted as synchronization boundaries, so their CPU
-attribution included time spent waiting for earlier queued MPS work to complete.
+#### After deferring scalar reads to logging boundaries
+
+After device-to-host scalar conversion was deferred to logging boundaries,
+`aten::_local_scalar_dense` disappeared from the profiled hot loop. The complete progression
+was:
+
+```text
+810 -> 30 -> 0
+```
+
+The large CPU time attributed to `_local_scalar_dense` did not mean scalar conversion itself
+was expensive. These reads forced previously queued MPS work to complete, so the reported
+CPU time was mostly synchronization wait. As noted above, the CPU-side profiler does not
+expose direct MPS kernel timing.
 
 ### Fused AdamW
+
+The Stage 5.3 optimization sequence used a fresh controlled baseline (20.699 ms); it should
+not be numerically conflated with the earlier Stage 5.1 component-profile run (19.771 ms).
 
 The original synchronized FP32 baseline and the result after selecting fused AdamW on MPS
 were:

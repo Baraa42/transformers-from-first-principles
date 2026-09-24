@@ -40,6 +40,40 @@ def sample_next_token(
     return torch.multinomial(probabilities, num_samples=1)
 
 
+def greedy_next_token(logits: torch.Tensor) -> torch.Tensor:
+    """Select the highest-logit token from batch logits shaped ``(B, V)``."""
+    if logits.ndim != 2:
+        raise ValueError("logits must have shape (B, V)")
+    return logits.argmax(dim=-1, keepdim=True)
+
+
+def generate_greedy(
+    model: torch.nn.Module,
+    input_ids: torch.Tensor,
+    *,
+    max_new_tokens: int,
+    context_length: int,
+) -> torch.Tensor:
+    """Append deterministic argmax tokens using naive uncached decoding."""
+    if input_ids.ndim != 2 or input_ids.dtype != torch.long:
+        raise ValueError("input_ids must be a torch.long tensor shaped (B, T)")
+    if max_new_tokens < 0 or context_length < 1:
+        raise ValueError("max_new_tokens must be non-negative and context_length positive")
+
+    was_training = model.training
+    model.eval()
+    generated = input_ids.clone()
+    try:
+        with torch.inference_mode():
+            for _ in range(max_new_tokens):
+                logits = model(generated[:, -context_length:])
+                next_token = greedy_next_token(logits[:, -1, :])
+                generated = torch.cat((generated, next_token), dim=1)
+    finally:
+        model.train(was_training)
+    return generated
+
+
 def generate(
     model: torch.nn.Module,
     input_ids: torch.Tensor,
