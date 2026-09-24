@@ -82,6 +82,7 @@ def run_training_step(
         precision=precision,
         scaler=None,
         max_grad_norm=max_grad_norm,
+        measure=False,
     )
     did_step = optimizer_step(precision=precision, optimizer=optimizer, scaler=None)
     if not did_step:

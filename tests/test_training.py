@@ -77,14 +77,18 @@ def test_evaluate_restores_training_mode_and_returns_metrics() -> None:
     assert math.isfinite(metrics["perplexity"])
 
 
-def test_global_grad_norm_is_positive_after_backward() -> None:
+def test_global_grad_norm_returns_positive_scalar_tensor_after_backward() -> None:
     model = TinyDecoderLM(vocab_size=10, d_model=8, n_heads=2, d_ff=16, n_layers=1)
     loss = causal_lm_loss(model(torch.randint(0, 10, (2, 3))), torch.randint(0, 10, (2, 3)))
     loss.backward()
-    assert global_grad_norm(model) > 0
+    norm = global_grad_norm(model)
+
+    assert isinstance(norm, torch.Tensor)
+    assert norm.ndim == 0
+    assert norm.item() > 0
 
 
-def test_global_grad_norm_uses_one_host_scalar_read() -> None:
+def test_global_grad_norm_uses_no_host_scalar_reads() -> None:
     model = torch.nn.Sequential(
         torch.nn.Linear(2, 2),
         torch.nn.Linear(2, 1),
@@ -97,8 +101,28 @@ def test_global_grad_norm_uses_one_host_scalar_read() -> None:
     scalar_reads = sum(
         event.count for event in profiler.key_averages() if event.key == "aten::_local_scalar_dense"
     )
-    assert norm > 0
-    assert scalar_reads == 1
+    assert norm.item() > 0
+    assert scalar_reads == 0
+
+
+def test_global_grad_norm_matches_reference_value_on_cpu() -> None:
+    model = torch.nn.Linear(2, 1, bias=True)
+    model.weight.grad = torch.tensor([[3.0, 4.0]])
+    model.bias.grad = torch.tensor([12.0])
+
+    norm = global_grad_norm(model)
+
+    assert norm.item() == pytest.approx(13.0)
+
+
+def test_global_grad_norm_without_gradients_is_zero_on_model_device() -> None:
+    model = torch.nn.Linear(2, 1)
+
+    norm = global_grad_norm(model)
+
+    assert norm.ndim == 0
+    assert norm.device == model.weight.device
+    assert norm.item() == 0.0
 
 
 def test_adamw_backend_selection_enables_fused_only_for_mps() -> None:
@@ -164,7 +188,8 @@ def test_clipping_below_threshold_leaves_gradients_unchanged() -> None:
 
     norm = clip_or_measure_grad_norm(model, max_grad_norm=10.0)
 
-    assert norm == 5.0
+    assert norm is not None
+    assert norm.item() == pytest.approx(5.0)
     assert torch.equal(model.weight.grad, before)
 
 
@@ -178,8 +203,9 @@ def test_clipping_above_threshold_scales_all_gradients_by_one_factor() -> None:
     post_clip_norm = global_grad_norm(model)
     scale = 5.0 / 13.0
 
-    assert pre_clip_norm == 13.0
-    assert post_clip_norm == pytest.approx(5.0)
+    assert pre_clip_norm is not None
+    assert pre_clip_norm.item() == pytest.approx(13.0)
+    assert post_clip_norm.item() == pytest.approx(5.0)
     for before, parameter in zip(original, model.parameters(), strict=True):
         assert torch.allclose(parameter.grad, before * scale)
 
@@ -189,10 +215,34 @@ def test_disabled_clipping_preserves_gradients_and_returns_original_norm() -> No
     model.weight.grad = torch.tensor([[3.0, 4.0]])
     before = model.weight.grad.clone()
 
-    norm = clip_or_measure_grad_norm(model, max_grad_norm=None)
+    norm = clip_or_measure_grad_norm(model, max_grad_norm=None, measure=True)
 
-    assert norm == 5.0
+    assert norm is not None
+    assert norm.item() == pytest.approx(5.0)
     assert torch.equal(model.weight.grad, before)
+
+
+def test_disabled_clipping_skips_measurement_when_not_requested(monkeypatch) -> None:
+    model = torch.nn.Linear(2, 1)
+
+    def fail_if_called(model: torch.nn.Module) -> torch.Tensor:
+        raise AssertionError("global_grad_norm should not be called")
+
+    monkeypatch.setattr(training, "global_grad_norm", fail_if_called)
+
+    assert clip_or_measure_grad_norm(model, max_grad_norm=None, measure=False) is None
+
+
+def test_gradient_norm_tensor_can_be_converted_at_logging_boundary() -> None:
+    model = torch.nn.Linear(2, 1, bias=False)
+    model.weight.grad = torch.tensor([[3.0, 4.0]])
+    norm = clip_or_measure_grad_norm(model, max_grad_norm=None, measure=True)
+
+    assert norm is not None
+    logged_norm = norm.item()
+
+    assert isinstance(logged_norm, float)
+    assert logged_norm == pytest.approx(5.0)
 
 
 @pytest.mark.parametrize("value", [0, -1, 1.5, True, False, "2"])
@@ -259,8 +309,9 @@ def test_gradient_clipping_runs_after_accumulation() -> None:
 
     pre_clip_norm = clip_or_measure_grad_norm(model, max_grad_norm=1.0)
 
-    assert pre_clip_norm == pytest.approx(2.0)
-    assert global_grad_norm(model) == pytest.approx(1.0)
+    assert pre_clip_norm is not None
+    assert pre_clip_norm.item() == pytest.approx(2.0)
+    assert global_grad_norm(model).item() == pytest.approx(1.0)
 
 
 class EpochIterable:
@@ -379,7 +430,8 @@ def test_fp16_scaler_unscales_before_clipping_and_keeps_parameters_fp32() -> Non
     except RuntimeError as error:
         pytest.skip(f"CPU FP16 AMP is unavailable: {error}")
 
-    assert grad_norm >= 0
+    assert grad_norm is not None
+    assert grad_norm.item() >= 0
     assert scaler.get_scale() == old_scale
     assert all(parameter.dtype == torch.float32 for parameter in model.parameters())
 
@@ -464,9 +516,15 @@ def test_fp16_accumulation_unscales_clips_and_steps_once(monkeypatch) -> None:
         def update(self) -> None:
             events.append("update")
 
-    def track_clip(model: torch.nn.Module, max_grad_norm: float | None) -> float:
+    def track_clip(
+        model: torch.nn.Module,
+        max_grad_norm: float | None,
+        *,
+        measure: bool,
+    ) -> torch.Tensor:
         events.append("clip")
-        return 2.0
+        assert measure
+        return torch.tensor(2.0)
 
     model = torch.nn.Linear(1, 1)
     optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
@@ -485,7 +543,8 @@ def test_fp16_accumulation_unscales_clips_and_steps_once(monkeypatch) -> None:
         max_grad_norm=1.0,
     )
 
-    assert grad_norm == 2.0
+    assert grad_norm is not None
+    assert grad_norm.item() == 2.0
     assert did_step
     assert events == [
         "scale",

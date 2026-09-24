@@ -162,6 +162,7 @@ def main() -> None:
     # 11. Each completed outer iteration is one successful optimizer/global step.
     step = start_step
     while step < target_step:
+        should_log = (step + 1) % training_config["log_interval"] == 0
         model.train()
         step_timings: dict[str, float] | None = {} if profile_timing else None
         step_started_at = start_timer(device, enabled=profile_timing)
@@ -197,6 +198,7 @@ def main() -> None:
                 precision=precision,
                 scaler=scaler,
                 max_grad_norm=max_grad_norm,
+                measure=should_log,
             )
         with timed_section("optimizer_step", step_timings, device, enabled=profile_timing):
             did_step = optimizer_step(
@@ -205,7 +207,6 @@ def main() -> None:
                 scaler=scaler,
             )
         step_time = stop_timer(step_started_at, device, enabled=profile_timing)
-        grad_clipped = max_grad_norm is not None and grad_norm > max_grad_norm
         if not did_step:
             amp_overflow_count += 1
             print(f"amp_overflow=true old_scale={old_scale:.0f} new_scale={scaler.get_scale():.0f}")
@@ -217,13 +218,17 @@ def main() -> None:
             timing_profile.record_successful_step(step_timings, step_time)
 
         # 11.3 Log mean unscaled loss and all consumed microbatch tokens.
-        if step % training_config["log_interval"] == 0:
+        if should_log:
             synchronize_device(device)
             elapsed = time.perf_counter() - log_start
             lr = optimizer.param_groups[0]["lr"]
+            if grad_norm is None:
+                raise RuntimeError("Gradient norm was not measured for a logging step")
+            grad_norm_value = grad_norm.item()
+            grad_clipped = max_grad_norm is not None and grad_norm_value > max_grad_norm
             print(
                 f"step={step} train_loss={step_loss / grad_accum_steps:.4f} lr={lr:.2e} "
-                f"grad_norm={grad_norm:.4f} grad_clipped={grad_clipped} "
+                f"grad_norm={grad_norm_value:.4f} grad_clipped={grad_clipped} "
                 f"tokens_per_sec={log_tokens / elapsed:.0f}"
             )
             synchronize_device(device)

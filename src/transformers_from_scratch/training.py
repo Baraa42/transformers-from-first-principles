@@ -64,29 +64,38 @@ def evaluate(
     return {"loss": loss, "perplexity": perplexity}
 
 
-def global_grad_norm(model: torch.nn.Module) -> float:
-    """Compute the global L2 norm with one host scalar read for logging."""
+def global_grad_norm(model: torch.nn.Module) -> torch.Tensor:
+    """Compute the global L2 norm without moving the scalar off device."""
     gradients = [
         gradient.detach()
         for parameter in model.parameters()
         if (gradient := parameter.grad) is not None
     ]
     if not gradients:
-        return 0.0
+        parameter = next(model.parameters(), None)
+        device = parameter.device if parameter is not None else torch.device("cpu")
+        return torch.zeros((), device=device, dtype=torch.float32)
 
     squared_norm = torch.zeros((), device=gradients[0].device, dtype=torch.float32)
     for gradient in gradients:
         squared_norm.add_(gradient.float().square().sum().to(device=squared_norm.device))
-    return squared_norm.sqrt().item()
+    return squared_norm.sqrt()
 
 
-def clip_or_measure_grad_norm(model: torch.nn.Module, max_grad_norm: float | None) -> float:
-    """Return pre-clipping global norm and clip in place when configured."""
-    if max_grad_norm is None:
+def clip_or_measure_grad_norm(
+    model: torch.nn.Module,
+    max_grad_norm: float | None,
+    *,
+    measure: bool = True,
+) -> torch.Tensor | None:
+    """Clip when configured, or measure only when requested for logging."""
+    if max_grad_norm is not None:
+        if max_grad_norm <= 0:
+            raise ValueError("max_grad_norm must be strictly positive or null")
+        return torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=max_grad_norm)
+    if measure:
         return global_grad_norm(model)
-    if max_grad_norm <= 0:
-        raise ValueError("max_grad_norm must be strictly positive or null")
-    return torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=max_grad_norm).item()
+    return None
 
 
 def validate_grad_accum_steps(value: object) -> int:
@@ -190,12 +199,13 @@ def prepare_gradients(
     precision: str,
     scaler: torch.amp.GradScaler | None,
     max_grad_norm: float | None,
-) -> float:
+    measure: bool = True,
+) -> torch.Tensor | None:
     """Unscale FP16 gradients, then measure/clip the global gradient norm."""
     validate_precision_state(precision, scaler)
     if precision == "fp16":
         scaler.unscale_(optimizer)
-    return clip_or_measure_grad_norm(model, max_grad_norm)
+    return clip_or_measure_grad_norm(model, max_grad_norm, measure=measure)
 
 
 def complete_optimizer_step(
@@ -205,7 +215,8 @@ def complete_optimizer_step(
     precision: str,
     scaler: Any | None,
     max_grad_norm: float | None,
-) -> tuple[float, bool]:
+    measure: bool = True,
+) -> tuple[torch.Tensor | None, bool]:
     """Unscale, measure/clip once, and perform exactly one optimizer attempt."""
     grad_norm = prepare_gradients(
         model=model,
@@ -213,6 +224,7 @@ def complete_optimizer_step(
         precision=precision,
         scaler=scaler,
         max_grad_norm=max_grad_norm,
+        measure=measure,
     )
     did_step = optimizer_step(precision=precision, optimizer=optimizer, scaler=scaler)
     return grad_norm, did_step
