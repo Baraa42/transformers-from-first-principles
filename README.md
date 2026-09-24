@@ -141,6 +141,17 @@ The profiler is intended to confirm the dominant compute and synchronization pat
 identified by manual timing. Add `--export-trace` to optionally write a Chrome trace
 under the ignored `benchmarks/profiler/` directory.
 
+## Stage 6.1 uncached inference baseline
+
+Run the deterministic uncached FP32 inference benchmark with:
+
+```bash
+poetry run python scripts/benchmark_inference.py
+```
+
+The benchmark separates one full-prompt prefill forward from the subsequent naive
+full-prefix decode forwards. It does not use a KV cache.
+
 ## Performance findings
 
 For the measured tiny model on Apple MPS:
