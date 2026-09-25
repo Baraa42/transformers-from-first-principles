@@ -119,10 +119,7 @@ def main() -> None:
             )
         )
 
-    summaries = [
-        summarize_inference_results(workload.results, window_size=8)
-        for workload in repeated_workloads
-    ]
+    summaries = [summarize_inference_results(workload.results) for workload in repeated_workloads]
     print_summary(summaries)
 
 
