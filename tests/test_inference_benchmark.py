@@ -72,6 +72,24 @@ def test_benchmark_prefill_decode_split_generates_exact_token_count() -> None:
     assert tuple(step.prefix_length for step in result.decode_steps) == (3, 4, 5)
 
 
+def test_benchmark_accepts_exact_minimum_context_length() -> None:
+    model = DeterministicModel()
+    prompt = torch.tensor([[1, 2]], dtype=torch.long)
+
+    result, generated = benchmark_uncached_greedy(
+        model,
+        prompt,
+        generated_tokens=2,
+        context_length=3,
+        device=torch.device("cpu"),
+        warmup_forwards=0,
+    )
+
+    assert generated.shape == (1, 4)
+    assert len(result.decode_steps) == 1
+    assert result.decode_steps[0].prefix_length == 3
+
+
 @pytest.mark.parametrize(
     ("source_token_ids", "prompt_length", "vocab_size", "message"),
     [
@@ -96,7 +114,7 @@ def test_construct_exact_prompt_rejects_invalid_inputs(
     ("generated_tokens", "context_length", "message"),
     [
         (0, 4, "generated_tokens"),
-        (2, 3, "context_length"),
+        (2, 2, "context_length"),
     ],
 )
 def test_benchmark_rejects_invalid_workload(

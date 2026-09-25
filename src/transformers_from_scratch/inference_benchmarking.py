@@ -131,8 +131,9 @@ def benchmark_uncached_greedy(
         raise ValueError("prompt length must be positive")
     if generated_tokens < 1:
         raise ValueError("generated_tokens must be positive")
-    if context_length < prompt_length + generated_tokens:
-        raise ValueError("context_length must fit the prompt and all generated tokens")
+    required_context_length = prompt_length + generated_tokens - 1
+    if context_length < required_context_length:
+        raise ValueError("context_length must fit the largest uncached prefix forward")
     if warmup_forwards < 0:
         raise ValueError("warmup_forwards must be non-negative")
 
