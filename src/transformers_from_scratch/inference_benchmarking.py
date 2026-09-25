@@ -3,6 +3,7 @@
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass
+from statistics import mean, median
 
 import torch
 
@@ -30,6 +31,41 @@ class InferenceBenchmarkResult:
     tokens_per_sec: float
     total_latency_ms: float
     decode_steps: tuple[DecodeStepTiming, ...]
+
+
+@dataclass(frozen=True)
+class DecodeWindowMetrics:
+    """Mean latency at the beginning and end of one decode run."""
+
+    first_mean_ms: float
+    last_mean_ms: float
+    growth_ratio: float
+
+
+@dataclass(frozen=True)
+class InferenceBenchmarkSummary:
+    """Median measurements across repeated identical inference workloads."""
+
+    prompt_length: int
+    generated_tokens: int
+    repetitions: int
+    window_size: int
+    median_prefill_ms: float
+    median_decode_total_ms: float
+    median_mean_decode_ms: float
+    median_tokens_per_sec: float
+    median_total_latency_ms: float
+    median_first_window_ms: float
+    median_last_window_ms: float
+    median_growth_ratio: float
+
+
+@dataclass(frozen=True)
+class RepeatedInferenceBenchmark:
+    """Individual results and outputs from repeated deterministic workloads."""
+
+    results: tuple[InferenceBenchmarkResult, ...]
+    generated_outputs: tuple[torch.Tensor, ...]
 
 
 def construct_exact_prompt(
@@ -93,6 +129,66 @@ def calculate_inference_metrics(
         tokens_per_sec=tokens_per_sec,
         total_latency_ms=prefill_ms + decode_total_ms,
         decode_steps=tuple(decode_steps),
+    )
+
+
+def decode_window_metrics(
+    decode_steps: Sequence[DecodeStepTiming],
+    *,
+    window_size: int = 8,
+) -> DecodeWindowMetrics:
+    """Compare the first and last fixed-size windows of one decode run."""
+    if window_size < 1:
+        raise ValueError("window_size must be positive")
+    if len(decode_steps) < window_size:
+        raise ValueError("decode_steps must contain at least window_size entries")
+    if any(step.latency_ms < 0 for step in decode_steps):
+        raise ValueError("decode latencies must be non-negative")
+
+    first_mean_ms = float(mean(step.latency_ms for step in decode_steps[:window_size]))
+    last_mean_ms = float(mean(step.latency_ms for step in decode_steps[-window_size:]))
+    if first_mean_ms == 0:
+        raise ValueError("first decode window mean must be non-zero")
+    return DecodeWindowMetrics(
+        first_mean_ms=first_mean_ms,
+        last_mean_ms=last_mean_ms,
+        growth_ratio=last_mean_ms / first_mean_ms,
+    )
+
+
+def summarize_inference_results(
+    results: Sequence[InferenceBenchmarkResult],
+    *,
+    window_size: int = 8,
+) -> InferenceBenchmarkSummary:
+    """Aggregate repeated identical workloads using medians."""
+    if not results:
+        raise ValueError("results must not be empty")
+
+    prompt_length = results[0].prompt_length
+    generated_tokens = results[0].generated_tokens
+    if any(
+        result.prompt_length != prompt_length or result.generated_tokens != generated_tokens
+        for result in results
+    ):
+        raise ValueError("all results must describe the same workload")
+
+    windows = [
+        decode_window_metrics(result.decode_steps, window_size=window_size) for result in results
+    ]
+    return InferenceBenchmarkSummary(
+        prompt_length=prompt_length,
+        generated_tokens=generated_tokens,
+        repetitions=len(results),
+        window_size=window_size,
+        median_prefill_ms=float(median(result.prefill_ms for result in results)),
+        median_decode_total_ms=float(median(result.decode_total_ms for result in results)),
+        median_mean_decode_ms=float(median(result.mean_decode_ms for result in results)),
+        median_tokens_per_sec=float(median(result.tokens_per_sec for result in results)),
+        median_total_latency_ms=float(median(result.total_latency_ms for result in results)),
+        median_first_window_ms=float(median(window.first_mean_ms for window in windows)),
+        median_last_window_ms=float(median(window.last_mean_ms for window in windows)),
+        median_growth_ratio=float(median(window.growth_ratio for window in windows)),
     )
 
 
@@ -171,3 +267,41 @@ def benchmark_uncached_greedy(
         decode_steps=decode_steps,
     )
     return result, generated
+
+
+def benchmark_uncached_repetitions(
+    model: torch.nn.Module,
+    prompt_ids: torch.Tensor,
+    *,
+    generated_tokens: int,
+    context_length: int,
+    device: torch.device,
+    repetitions: int = 5,
+    warmup_forwards: int = 2,
+) -> RepeatedInferenceBenchmark:
+    """Run identical uncached workloads, warming up only before the first run."""
+    if repetitions < 1:
+        raise ValueError("repetitions must be at least 1")
+    if warmup_forwards < 0:
+        raise ValueError("warmup_forwards must be non-negative")
+
+    results: list[InferenceBenchmarkResult] = []
+    generated_outputs: list[torch.Tensor] = []
+    for repetition in range(repetitions):
+        result, generated = benchmark_uncached_greedy(
+            model,
+            prompt_ids,
+            generated_tokens=generated_tokens,
+            context_length=context_length,
+            device=device,
+            warmup_forwards=warmup_forwards if repetition == 0 else 0,
+        )
+        if generated_outputs and not torch.equal(generated_outputs[0], generated):
+            raise RuntimeError("greedy output changed across identical benchmark repetitions")
+        results.append(result)
+        generated_outputs.append(generated)
+
+    return RepeatedInferenceBenchmark(
+        results=tuple(results),
+        generated_outputs=tuple(generated_outputs),
+    )

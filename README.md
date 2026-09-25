@@ -149,8 +149,9 @@ Run the deterministic uncached FP32 inference benchmark with:
 poetry run python scripts/benchmark_inference.py
 ```
 
-The benchmark separates one full-prompt prefill forward from the subsequent naive
-full-prefix decode forwards. It does not use a KV cache.
+The benchmark repeats each workload, reports median timings, and compares the first eight
+with the last eight naive full-prefix decode forwards to expose latency growth. It does not
+use a KV cache.
 
 ## Performance findings
 

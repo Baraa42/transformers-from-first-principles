@@ -8,9 +8,11 @@ from tokenizers import Tokenizer
 
 from transformers_from_scratch.data import load_tokenizer
 from transformers_from_scratch.inference_benchmarking import (
-    InferenceBenchmarkResult,
-    benchmark_uncached_greedy,
+    InferenceBenchmarkSummary,
+    RepeatedInferenceBenchmark,
+    benchmark_uncached_repetitions,
     construct_exact_prompt,
+    summarize_inference_results,
 )
 from transformers_from_scratch.model import TinyDecoderLM
 from transformers_from_scratch.training import resolve_device
@@ -34,6 +36,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--device", default="auto", choices=("auto", "cpu", "cuda", "mps"))
     parser.add_argument("--warmup-forwards", type=int, default=2)
+    parser.add_argument("--repetitions", type=int, default=5)
     return parser.parse_args()
 
 
@@ -51,16 +54,23 @@ def load_benchmark_model(
     return model, tokenizer
 
 
-def print_summary(results: list[InferenceBenchmarkResult]) -> None:
-    """Print prefill and subsequent forward-only decode measurements."""
+def print_summary(summaries: list[InferenceBenchmarkSummary]) -> None:
+    """Print median cross-run latency and early-vs-late decode growth."""
     print()
-    print("prompt | new_tokens | prefill_ms | decode_ms | mean_decode_ms | decode_tok_s | total_ms")
-    for result in results:
+    print(
+        "prompt | reps | prefill_med | decode_ms_tok_med | decode_tok_s_med "
+        "| first8_ms | last8_ms | growth | total_med"
+    )
+    for summary in summaries:
         print(
-            f"{result.prompt_length:>6} | {result.generated_tokens:>10} "
-            f"| {result.prefill_ms:>10.3f} | {result.decode_total_ms:>9.3f} "
-            f"| {result.mean_decode_ms:>14.3f} | {result.tokens_per_sec:>12.1f} "
-            f"| {result.total_latency_ms:>8.3f}"
+            f"{summary.prompt_length:>6} | {summary.repetitions:>4} "
+            f"| {summary.median_prefill_ms:>11.3f} "
+            f"| {summary.median_mean_decode_ms:>17.3f} "
+            f"| {summary.median_tokens_per_sec:>16.1f} "
+            f"| {summary.median_first_window_ms:>9.3f} "
+            f"| {summary.median_last_window_ms:>8.3f} "
+            f"| {summary.median_growth_ratio:>6.3f}x "
+            f"| {summary.median_total_latency_ms:>9.3f}"
         )
 
 
@@ -68,6 +78,8 @@ def main() -> None:
     args = parse_args()
     if args.warmup_forwards < 0:
         raise ValueError("warmup_forwards must be non-negative")
+    if args.repetitions < 1:
+        raise ValueError("repetitions must be at least 1")
 
     device = resolve_device(args.device)
     model, tokenizer = load_benchmark_model(args.checkpoint, device)
@@ -76,7 +88,7 @@ def main() -> None:
         raise ValueError("checkpoint and tokenizer vocabulary sizes do not match")
     source_token_ids = tokenizer.encode(DETERMINISTIC_PROMPT_TEXT).ids
 
-    print("batch_size=1")
+    print(f"batch_size=1 repetitions={args.repetitions} warmup_forwards={args.warmup_forwards}")
     print(f"device={device.type} precision=fp32 decoding=greedy cache=disabled")
     print(
         f"generated_tokens={GENERATED_TOKENS} benchmark_context_length={BENCHMARK_CONTEXT_LENGTH}"
@@ -87,7 +99,7 @@ def main() -> None:
         "quality beyond the training context"
     )
 
-    results = []
+    repeated_workloads: list[RepeatedInferenceBenchmark] = []
     for prompt_length in PROMPT_LENGTHS:
         prompt_ids = construct_exact_prompt(
             source_token_ids,
@@ -95,17 +107,23 @@ def main() -> None:
             vocab_size,
             device,
         )
-        result, _ = benchmark_uncached_greedy(
-            model,
-            prompt_ids,
-            generated_tokens=GENERATED_TOKENS,
-            context_length=BENCHMARK_CONTEXT_LENGTH,
-            device=device,
-            warmup_forwards=args.warmup_forwards,
+        repeated_workloads.append(
+            benchmark_uncached_repetitions(
+                model,
+                prompt_ids,
+                generated_tokens=GENERATED_TOKENS,
+                context_length=BENCHMARK_CONTEXT_LENGTH,
+                device=device,
+                repetitions=args.repetitions,
+                warmup_forwards=args.warmup_forwards,
+            )
         )
-        results.append(result)
 
-    print_summary(results)
+    summaries = [
+        summarize_inference_results(workload.results, window_size=8)
+        for workload in repeated_workloads
+    ]
+    print_summary(summaries)
 
 
 if __name__ == "__main__":
