@@ -74,6 +74,46 @@ def generate_greedy(
     return generated
 
 
+def generate_greedy_cached(
+    model: torch.nn.Module,
+    input_ids: torch.Tensor,
+    *,
+    max_new_tokens: int,
+    context_length: int,
+) -> torch.Tensor:
+    """Append deterministic argmax tokens using an untruncated KV cache.
+
+    The complete requested sequence, including generated tokens, must fit within
+    ``context_length`` because cache eviction is not implemented.
+    """
+    if input_ids.ndim != 2 or input_ids.dtype != torch.long:
+        raise ValueError("input_ids must be a torch.long tensor shaped (B, T)")
+    if max_new_tokens < 0 or context_length < 1:
+        raise ValueError("max_new_tokens must be non-negative and context_length positive")
+    if input_ids.shape[1] + max_new_tokens > context_length:
+        raise ValueError("prompt and generated tokens must fit within context_length")
+
+    was_training = model.training
+    model.eval()
+    generated = input_ids.clone()
+    try:
+        with torch.inference_mode():
+            if max_new_tokens == 0:
+                return generated
+
+            logits, cache = model(input_ids, use_cache=True)
+            next_token = greedy_next_token(logits[:, -1, :])
+            generated = torch.cat((generated, next_token), dim=1)
+
+            for _ in range(max_new_tokens - 1):
+                logits, cache = model(next_token, use_cache=True, kv_cache=cache)
+                next_token = greedy_next_token(logits[:, -1, :])
+                generated = torch.cat((generated, next_token), dim=1)
+    finally:
+        model.train(was_training)
+    return generated
+
+
 def generate(
     model: torch.nn.Module,
     input_ids: torch.Tensor,
