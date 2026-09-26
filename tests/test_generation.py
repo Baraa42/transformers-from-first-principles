@@ -84,8 +84,8 @@ def test_cached_greedy_matches_uncached_for_multiple_steps_and_batch() -> None:
     input_ids = torch.randint(0, 19, (2, 5))
     original_input = input_ids.clone()
 
-    uncached = generate_greedy(model, input_ids, max_new_tokens=6, context_length=11)
-    cached = generate_greedy_cached(model, input_ids, max_new_tokens=6, context_length=11)
+    uncached = generate_greedy(model, input_ids, max_new_tokens=6, context_length=10)
+    cached = generate_greedy_cached(model, input_ids, max_new_tokens=6, context_length=10)
 
     assert torch.equal(cached, uncached)
     assert cached.shape == (2, 11)
@@ -97,8 +97,8 @@ def test_cached_greedy_single_token_matches_uncached_prefill() -> None:
     model = TinyDecoderLM(vocab_size=13, d_model=16, n_heads=4, d_ff=32, n_layers=2)
     input_ids = torch.randint(0, 13, (2, 5))
 
-    uncached = generate_greedy(model, input_ids, max_new_tokens=1, context_length=6)
-    cached = generate_greedy_cached(model, input_ids, max_new_tokens=1, context_length=6)
+    uncached = generate_greedy(model, input_ids, max_new_tokens=1, context_length=5)
+    cached = generate_greedy_cached(model, input_ids, max_new_tokens=1, context_length=5)
 
     assert torch.equal(cached, uncached)
 
@@ -153,14 +153,18 @@ def test_cached_greedy_restores_model_mode(starts_in_training_mode: bool) -> Non
 
 
 def test_cached_greedy_allows_zero_tokens_without_mutating_input() -> None:
-    model = TinyDecoderLM(vocab_size=10, d_model=8, n_heads=2, d_ff=16, n_layers=1)
+    class FailOnForward(torch.nn.Module):
+        def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
+            raise AssertionError("zero-token generation must not run a model forward")
+
+    model = FailOnForward()
     input_ids = torch.tensor([[1, 2, 3]], dtype=torch.long)
 
     output = generate_greedy_cached(
         model,
         input_ids,
         max_new_tokens=0,
-        context_length=3,
+        context_length=1,
     )
 
     assert torch.equal(output, input_ids)
@@ -171,7 +175,6 @@ def test_cached_greedy_allows_zero_tokens_without_mutating_input() -> None:
     ("max_new_tokens", "context_length", "message"),
     [
         (-1, 3, "max_new_tokens"),
-        (1, 3, "context_length"),
     ],
 )
 def test_cached_greedy_rejects_invalid_workloads(
@@ -188,4 +191,17 @@ def test_cached_greedy_rejects_invalid_workloads(
             input_ids,
             max_new_tokens=max_new_tokens,
             context_length=context_length,
+        )
+
+
+def test_cached_greedy_rejects_context_shorter_than_largest_processed_prefix() -> None:
+    model = TinyDecoderLM(vocab_size=10, d_model=8, n_heads=2, d_ff=16, n_layers=1)
+    input_ids = torch.tensor([[1, 2, 3, 4, 5]], dtype=torch.long)
+
+    with pytest.raises(ValueError, match="context_length"):
+        generate_greedy_cached(
+            model,
+            input_ids,
+            max_new_tokens=6,
+            context_length=9,
         )

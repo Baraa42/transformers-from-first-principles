@@ -83,15 +83,19 @@ def generate_greedy_cached(
 ) -> torch.Tensor:
     """Append deterministic argmax tokens using an untruncated KV cache.
 
-    The complete requested sequence, including generated tokens, must fit within
-    ``context_length`` because cache eviction is not implemented.
+    For a prompt of length ``P`` and ``N > 0`` generated tokens, the longest
+    prefix processed by the model has length ``P + N - 1``: prefill produces
+    token one, and the final generated token is not fed back into the model.
+    Cache eviction is not implemented.
     """
     if input_ids.ndim != 2 or input_ids.dtype != torch.long:
         raise ValueError("input_ids must be a torch.long tensor shaped (B, T)")
     if max_new_tokens < 0 or context_length < 1:
         raise ValueError("max_new_tokens must be non-negative and context_length positive")
-    if input_ids.shape[1] + max_new_tokens > context_length:
-        raise ValueError("prompt and generated tokens must fit within context_length")
+    if max_new_tokens > 0:
+        required_context = input_ids.shape[1] + max_new_tokens - 1
+        if required_context > context_length:
+            raise ValueError("context_length must fit the largest cached prefix forward")
 
     was_training = model.training
     model.eval()
