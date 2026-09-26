@@ -3,21 +3,33 @@
 import torch
 
 
-def apply_rope(x: torch.Tensor, base: float = 10_000.0) -> torch.Tensor:
+def apply_rope(
+    x: torch.Tensor,
+    base: float = 10_000.0,
+    offset: int = 0,
+) -> torch.Tensor:
     """Apply RoPE to vectors shaped ``(B, H, n, d_head)``.
 
     This efficiently applies the known position-dependent rotation ``R_p`` as
     ``x_p_rope = R_p x_p``. Rotated query/key dot products depend on relative
-    position without explicitly constructing rotation matrices.
+    position without explicitly constructing rotation matrices. ``offset=0``
+    applies positions ``0..n-1``; ``offset=P`` applies ``P..P+n-1`` to a chunk.
     """
     if x.ndim != 4:
         raise ValueError(f"RoPE expects (B, H, n, d_head), got {tuple(x.shape)}")
+    if isinstance(offset, bool) or not isinstance(offset, int) or offset < 0:
+        raise ValueError("RoPE offset must be a non-negative integer")
     _, _, n, d_head = x.shape
     if d_head % 2:
         raise ValueError(f"RoPE requires even d_head, got {d_head}")
     # One frequency per adjacent pair: (x0, x1), (x2, x3), ...
     freq = 1.0 / (base ** (torch.arange(0, d_head, 2, device=x.device).float() / d_head))
-    positions = torch.arange(n, device=x.device, dtype=freq.dtype)
+    positions = torch.arange(
+        offset,
+        offset + n,
+        device=x.device,
+        dtype=freq.dtype,
+    )
     angles = positions[:, None] * freq[None, :]
     cos = torch.cos(angles)[None, None, :, :, None]
     sin = torch.sin(angles)[None, None, :, :, None]
