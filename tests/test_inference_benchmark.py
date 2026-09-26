@@ -2,13 +2,16 @@ import pytest
 import torch
 
 from transformers_from_scratch.inference_benchmarking import (
+    benchmark_cached_greedy,
     benchmark_uncached_greedy,
     benchmark_uncached_repetitions,
+    calculate_cached_inference_metrics,
     calculate_inference_metrics,
     construct_exact_prompt,
     decode_window_metrics,
     summarize_inference_results,
 )
+from transformers_from_scratch.model import TinyDecoderLM
 
 
 class DeterministicModel(torch.nn.Module):
@@ -248,3 +251,57 @@ def test_repeated_benchmark_rejects_zero_repetitions() -> None:
             repetitions=0,
             window_size=1,
         )
+
+
+class RecordingTinyDecoderLM(TinyDecoderLM):
+    def __init__(self) -> None:
+        super().__init__(vocab_size=8, d_model=8, n_heads=2, d_ff=16, n_layers=1)
+        self.forward_lengths: list[int] = []
+
+    def forward(self, token_ids: torch.Tensor, **kwargs):
+        self.forward_lengths.append(token_ids.shape[1])
+        return super().forward(token_ids, **kwargs)
+
+
+def test_cached_benchmark_matches_uncached_and_uses_single_token_decode() -> None:
+    torch.manual_seed(17)
+    model = RecordingTinyDecoderLM()
+    prompt = torch.tensor([[1, 2]], dtype=torch.long)
+
+    _, uncached_ids = benchmark_uncached_greedy(
+        model,
+        prompt,
+        generated_tokens=4,
+        context_length=5,
+        device=torch.device("cpu"),
+        warmup_forwards=0,
+        window_size=1,
+    )
+    model.forward_lengths.clear()
+
+    cached_result, cached_ids = benchmark_cached_greedy(
+        model,
+        prompt,
+        generated_tokens=4,
+        context_length=5,
+        device=torch.device("cpu"),
+        warmup_forwards=0,
+    )
+
+    assert torch.equal(cached_ids, uncached_ids)
+    assert cached_ids.shape == (1, 6)
+    assert model.forward_lengths == [2, 1, 1, 1]
+    assert cached_result.generated_tokens - 1 == 3
+
+
+def test_cached_metric_math_uses_generated_tokens_minus_one() -> None:
+    result = calculate_cached_inference_metrics(
+        prompt_length=128,
+        generated_tokens=4,
+        prefill_ms=5.0,
+        decode_total_ms=30.0,
+    )
+
+    assert result.mean_decode_ms == pytest.approx(10.0)
+    assert result.tokens_per_sec == pytest.approx(3 / 0.03)
+    assert result.total_latency_ms == pytest.approx(35.0)

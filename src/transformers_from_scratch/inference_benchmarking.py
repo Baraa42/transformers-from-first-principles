@@ -1,4 +1,4 @@
-"""Measurement helpers for deterministic uncached autoregressive inference."""
+"""Measurement helpers for deterministic autoregressive inference."""
 
 import time
 from collections.abc import Sequence
@@ -60,6 +60,41 @@ class RepeatedInferenceBenchmark:
     """Individual results and outputs from repeated deterministic workloads."""
 
     results: tuple[InferenceBenchmarkResult, ...]
+    generated_outputs: tuple[torch.Tensor, ...]
+
+
+@dataclass(frozen=True)
+class CachedInferenceBenchmarkResult:
+    """Prefill and cached-decode measurements for one run."""
+
+    prompt_length: int
+    generated_tokens: int
+    prefill_ms: float
+    decode_total_ms: float
+    mean_decode_ms: float
+    tokens_per_sec: float
+    total_latency_ms: float
+
+
+@dataclass(frozen=True)
+class CachedInferenceBenchmarkSummary:
+    """Median cached-inference measurements across repeated workloads."""
+
+    prompt_length: int
+    generated_tokens: int
+    repetitions: int
+    median_prefill_ms: float
+    median_decode_total_ms: float
+    median_mean_decode_ms: float
+    median_tokens_per_sec: float
+    median_total_latency_ms: float
+
+
+@dataclass(frozen=True)
+class RepeatedCachedInferenceBenchmark:
+    """Individual cached results and generated outputs."""
+
+    results: tuple[CachedInferenceBenchmarkResult, ...]
     generated_outputs: tuple[torch.Tensor, ...]
 
 
@@ -390,6 +425,161 @@ def benchmark_uncached_repetitions(
         generated_outputs.append(generated)
 
     return RepeatedInferenceBenchmark(
+        results=tuple(results),
+        generated_outputs=tuple(generated_outputs),
+    )
+
+
+def calculate_cached_inference_metrics(
+    *,
+    prompt_length: int,
+    generated_tokens: int,
+    prefill_ms: float,
+    decode_total_ms: float,
+) -> CachedInferenceBenchmarkResult:
+    """Calculate cached block-level decode metrics for one workload."""
+    if prompt_length < 1:
+        raise ValueError("prompt_length must be positive")
+    if generated_tokens < 2:
+        raise ValueError("generated_tokens must be at least 2 for decode timing")
+    if prefill_ms < 0 or decode_total_ms < 0:
+        raise ValueError("inference timings must be non-negative")
+
+    decode_forwards = generated_tokens - 1
+    mean_decode_ms = decode_total_ms / decode_forwards
+    tokens_per_sec = (
+        decode_forwards / (decode_total_ms / 1000.0) if decode_total_ms > 0 else float("inf")
+    )
+    return CachedInferenceBenchmarkResult(
+        prompt_length=prompt_length,
+        generated_tokens=generated_tokens,
+        prefill_ms=prefill_ms,
+        decode_total_ms=decode_total_ms,
+        mean_decode_ms=mean_decode_ms,
+        tokens_per_sec=tokens_per_sec,
+        total_latency_ms=prefill_ms + decode_total_ms,
+    )
+
+
+def summarize_cached_inference_results(
+    results: Sequence[CachedInferenceBenchmarkResult],
+) -> CachedInferenceBenchmarkSummary:
+    """Aggregate repeated cached workloads using medians."""
+    if not results:
+        raise ValueError("results must not be empty")
+
+    first = results[0]
+    if any(
+        result.prompt_length != first.prompt_length
+        or result.generated_tokens != first.generated_tokens
+        for result in results
+    ):
+        raise ValueError("all results must describe the same workload")
+
+    return CachedInferenceBenchmarkSummary(
+        prompt_length=first.prompt_length,
+        generated_tokens=first.generated_tokens,
+        repetitions=len(results),
+        median_prefill_ms=float(median(result.prefill_ms for result in results)),
+        median_decode_total_ms=float(median(result.decode_total_ms for result in results)),
+        median_mean_decode_ms=float(median(result.mean_decode_ms for result in results)),
+        median_tokens_per_sec=float(median(result.tokens_per_sec for result in results)),
+        median_total_latency_ms=float(median(result.total_latency_ms for result in results)),
+    )
+
+
+def benchmark_cached_greedy(
+    model: torch.nn.Module,
+    prompt_ids: torch.Tensor,
+    *,
+    generated_tokens: int,
+    context_length: int,
+    device: torch.device,
+    warmup_forwards: int = 2,
+) -> tuple[CachedInferenceBenchmarkResult, torch.Tensor]:
+    """Measure cached prefill and all subsequent one-token decode calls as blocks."""
+    if prompt_ids.ndim != 2 or prompt_ids.shape[0] != 1 or prompt_ids.dtype != torch.long:
+        raise ValueError("prompt_ids must be a torch.long tensor shaped (1, T)")
+    prompt_length = prompt_ids.shape[1]
+    if prompt_length < 1:
+        raise ValueError("prompt length must be positive")
+    if generated_tokens < 2:
+        raise ValueError("generated_tokens must be at least 2 for decode timing")
+    if context_length < prompt_length + generated_tokens - 1:
+        raise ValueError("context_length must fit the largest cached prefix forward")
+    if warmup_forwards < 0:
+        raise ValueError("warmup_forwards must be non-negative")
+
+    was_training = model.training
+    model.eval()
+    try:
+        with torch.inference_mode():
+            for _ in range(warmup_forwards):
+                model(prompt_ids, use_cache=True)
+            synchronize_device(device)
+
+            synchronize_device(device)
+            prefill_started_at = time.perf_counter()
+            logits, cache = model(prompt_ids, use_cache=True)
+            next_token = greedy_next_token(logits[:, -1, :])
+            synchronize_device(device)
+            prefill_ms = (time.perf_counter() - prefill_started_at) * 1000.0
+            generated = torch.cat((prompt_ids.clone(), next_token), dim=1)
+
+            decode_forwards = generated_tokens - 1
+            synchronize_device(device)
+            decode_started_at = time.perf_counter()
+            for _ in range(decode_forwards):
+                logits, cache = model(next_token, use_cache=True, kv_cache=cache)
+                next_token = greedy_next_token(logits[:, -1, :])
+                generated = torch.cat((generated, next_token), dim=1)
+            synchronize_device(device)
+            decode_total_ms = (time.perf_counter() - decode_started_at) * 1000.0
+    finally:
+        model.train(was_training)
+
+    result = calculate_cached_inference_metrics(
+        prompt_length=prompt_length,
+        generated_tokens=generated_tokens,
+        prefill_ms=prefill_ms,
+        decode_total_ms=decode_total_ms,
+    )
+    return result, generated
+
+
+def benchmark_cached_repetitions(
+    model: torch.nn.Module,
+    prompt_ids: torch.Tensor,
+    *,
+    generated_tokens: int,
+    context_length: int,
+    device: torch.device,
+    repetitions: int = 3,
+    warmup_forwards: int = 2,
+) -> RepeatedCachedInferenceBenchmark:
+    """Repeat identical cached workloads, warming up only before the first run."""
+    if repetitions < 1:
+        raise ValueError("repetitions must be at least 1")
+    if warmup_forwards < 0:
+        raise ValueError("warmup_forwards must be non-negative")
+
+    results: list[CachedInferenceBenchmarkResult] = []
+    generated_outputs: list[torch.Tensor] = []
+    for repetition in range(repetitions):
+        result, generated = benchmark_cached_greedy(
+            model,
+            prompt_ids,
+            generated_tokens=generated_tokens,
+            context_length=context_length,
+            device=device,
+            warmup_forwards=warmup_forwards if repetition == 0 else 0,
+        )
+        if generated_outputs and not torch.equal(generated_outputs[0], generated):
+            raise RuntimeError("cached greedy output changed across identical repetitions")
+        results.append(result)
+        generated_outputs.append(generated)
+
+    return RepeatedCachedInferenceBenchmark(
         results=tuple(results),
         generated_outputs=tuple(generated_outputs),
     )
