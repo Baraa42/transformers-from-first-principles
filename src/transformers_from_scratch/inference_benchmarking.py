@@ -521,9 +521,10 @@ def benchmark_cached_greedy(
             synchronize_device(device)
             prefill_started_at = time.perf_counter()
             logits, cache = model(prompt_ids, use_cache=True)
-            next_token = greedy_next_token(logits[:, -1, :])
             synchronize_device(device)
             prefill_ms = (time.perf_counter() - prefill_started_at) * 1000.0
+
+            next_token = greedy_next_token(logits[:, -1, :])
             generated = torch.cat((prompt_ids.clone(), next_token), dim=1)
 
             decode_forwards = generated_tokens - 1
