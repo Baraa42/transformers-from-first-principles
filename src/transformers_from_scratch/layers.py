@@ -4,7 +4,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from .attention import SelfAttention
+from .attention import KVCache, SelfAttention
 
 
 class MLP(nn.Module):
@@ -32,6 +32,25 @@ class DecoderBlock(nn.Module):
         self.norm1, self.norm2 = nn.LayerNorm(d_model), nn.LayerNorm(d_model)
         self.attn, self.mlp = SelfAttention(d_model, n_heads), MLP(d_model, d_ff)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self,
+        x: torch.Tensor,
+        *,
+        use_cache: bool = False,
+        kv_cache: KVCache | None = None,
+    ) -> torch.Tensor | tuple[torch.Tensor, KVCache]:
+        if kv_cache is not None and not use_cache:
+            raise ValueError("kv_cache requires use_cache=True")
+
+        if use_cache:
+            attn_output, new_cache = self.attn(
+                self.norm1(x),
+                use_cache=True,
+                kv_cache=kv_cache,
+            )
+            x = x + attn_output
+            x = x + self.mlp(self.norm2(x))
+            return x, new_cache
+
         x = x + self.attn(self.norm1(x))
         return x + self.mlp(self.norm2(x))
