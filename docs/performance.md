@@ -505,3 +505,116 @@ Decode:
 
 Real serving systems must manage both latency and throughput. That trade-off motivates the
 next stage on inference batching.
+
+## Stage 6.5 — Static Decode Batching
+
+This benchmark held context length at 128, precision at FP32, and the device at MPS while
+varying only the static batch size across 1, 2, 4, 8, and 16. Each cached-decode step used:
+
+```text
+input:              (B, 1)
+KV cache per layer: (B, H, T, d_head)
+T = 128
+```
+
+Timing used five repetitions with two warmup forwards. Each reported latency is:
+
+```text
+median(
+    synchronized block total / 50 identical cached-decode forwards
+)
+```
+
+Every forward within a measured block received the same baseline cache, so cache length
+remained fixed at 128 rather than growing between iterations.
+
+| B  | Decode ms | Aggregate tok/s | Per-sequence tok/s | KV cache MiB |
+| -: | --------: | --------------: | -----------------: | -----------: |
+|  1 |     0.859 |          1164.3 |             1164.3 |        0.500 |
+|  2 |     0.860 |          2324.8 |             1162.4 |        1.000 |
+|  4 |     0.884 |          4524.6 |             1131.1 |        2.000 |
+|  8 |     0.876 |          9129.0 |             1141.1 |        4.000 |
+| 16 |     0.876 |         18260.1 |             1141.3 |        8.000 |
+
+### Latency and throughput metrics
+
+One batched forward produces one new token for every sequence in the batch. Decode-step
+latency is the wall-clock duration of that forward. At `B=8`, a step takes approximately
+0.876 ms and produces eight tokens.
+
+Aggregate throughput measures total output across all sequences:
+
+```text
+aggregate tok/s = B / step_time_seconds
+```
+
+At `B=8`, this is approximately 9,129 tok/s. Per-sequence throughput approximates the
+generation rate experienced by each sequence:
+
+```text
+per-sequence tok/s = 1 / step_time_seconds
+```
+
+At `B=8`, this is approximately 1,141 tok/s per sequence.
+
+The theoretical KV-cache storage remains:
+
+```text
+KV memory = 2 * L * B * T * d_model * bytes_per_element
+```
+
+At fixed `T`, KV-cache memory therefore grows linearly with batch size: from 0.5 MiB at
+`B=1` to 1, 2, 4, and 8 MiB at batch sizes 2, 4, 8, and 16 respectively.
+
+### Measurement interpretation
+
+Batch size increased by 16x while measured decode-step latency remained roughly
+0.86–0.88 ms. Aggregate throughput consequently increased almost proportionally:
+
+```text
+B=1  -> ~1.16k tok/s
+B=2  -> ~2.32k tok/s
+B=4  -> ~4.52k tok/s
+B=8  -> ~9.13k tok/s
+B=16 -> ~18.26k tok/s
+```
+
+Per-sequence throughput stayed around 1.1k tok/s. For this tiny model and workload, larger
+static batches therefore improved aggregate throughput dramatically with almost no
+measured per-sequence latency penalty. This is evidence that batch-1 decode underutilizes
+the MPS device for this workload; the exact scaling should not be generalized to larger
+models or other hardware.
+
+Static batching improves accelerator utilization by processing multiple independent
+sequences in one forward, but it increases KV-cache memory. The practical trade-off is:
+
+```text
+higher batch size
+-> higher aggregate throughput
+-> more KV-cache memory
+-> potentially higher latency once hardware saturation is reached
+```
+
+This experiment did not reach a saturation point by `B=16`. It does not establish a
+production-optimal batch size.
+
+### Static versus continuous batching
+
+Static batching collects a fixed group of requests, runs them together, and keeps batch
+membership fixed. This benchmark models that simplified situation.
+
+Real serving systems often require dynamic or continuous batching because requests arrive
+at different times, prompt lengths vary, sequences finish at different times, and keeping
+batch slots occupied can improve throughput. Continuous batching is not implemented or
+measured here.
+
+### Progression from Stages 6.3 and 6.4
+
+Stage 6.3 established exact greedy-output equality between cached and uncached decoding,
+but KV caching did not materially improve latency for batch-1 tiny-model MPS decode. Stage
+6.4 separated prefill from cached decode and measured linear KV-memory growth with context
+length. Stage 6.5 then exposed unused device capacity through static batching, delivering
+near-linear aggregate-throughput scaling through `B=16` in this experiment.
+
+The systems lesson is workload-specific: an optimization can have little benefit at batch
+1 yet become valuable in a serving regime where many requests are processed concurrently.
