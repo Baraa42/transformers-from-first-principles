@@ -9,6 +9,8 @@ from transformers_from_scratch.inference_benchmarking import (
     calculate_inference_metrics,
     construct_exact_prompt,
     decode_window_metrics,
+    kv_cache_size_bytes,
+    prepare_cached_decode,
     summarize_inference_results,
 )
 from transformers_from_scratch.model import TinyDecoderLM
@@ -305,3 +307,33 @@ def test_cached_metric_math_uses_generated_tokens_minus_one() -> None:
     assert result.mean_decode_ms == pytest.approx(10.0)
     assert result.tokens_per_sec == pytest.approx(3 / 0.03)
     assert result.total_latency_ms == pytest.approx(35.0)
+
+
+def test_kv_cache_size_bytes_for_fp32() -> None:
+    cache_bytes = kv_cache_size_bytes(
+        n_layers=4,
+        batch_size=1,
+        sequence_length=256,
+        d_model=128,
+        bytes_per_element=4,
+    )
+
+    assert cache_bytes == 1_048_576
+    assert cache_bytes / 1024**2 == 1.0
+
+
+def test_prepare_cached_decode_uses_one_token_and_grows_cache() -> None:
+    torch.manual_seed(23)
+    model = TinyDecoderLM(vocab_size=8, d_model=8, n_heads=2, d_ff=16, n_layers=2)
+    model.eval()
+    prompt = torch.tensor([[1, 2, 3]], dtype=torch.long)
+
+    with torch.inference_mode():
+        next_token, cache = prepare_cached_decode(model, prompt)
+        _, updated_cache = model(next_token, use_cache=True, kv_cache=cache)
+
+    assert next_token.shape == (1, 1)
+    assert all(layer_cache[0].shape[2] == 3 for layer_cache in cache)
+    assert all(layer_cache[1].shape[2] == 3 for layer_cache in cache)
+    assert all(layer_cache[0].shape[2] == 4 for layer_cache in updated_cache)
+    assert all(layer_cache[1].shape[2] == 4 for layer_cache in updated_cache)

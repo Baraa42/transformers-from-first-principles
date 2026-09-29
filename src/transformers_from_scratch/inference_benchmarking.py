@@ -8,6 +8,7 @@ from statistics import median
 import torch
 
 from transformers_from_scratch.generation import greedy_next_token
+from transformers_from_scratch.model import ModelKVCache
 from transformers_from_scratch.training import synchronize_device
 
 
@@ -96,6 +97,15 @@ class RepeatedCachedInferenceBenchmark:
 
     results: tuple[CachedInferenceBenchmarkResult, ...]
     generated_outputs: tuple[torch.Tensor, ...]
+
+
+@dataclass(frozen=True)
+class PrefillDecodeBenchmarkResult:
+    """Median full-prefill and one-token cached-decode latency."""
+
+    sequence_length: int
+    median_prefill_ms: float
+    median_cached_decode_ms: float
 
 
 def construct_exact_prompt(
@@ -583,4 +593,100 @@ def benchmark_cached_repetitions(
     return RepeatedCachedInferenceBenchmark(
         results=tuple(results),
         generated_outputs=tuple(generated_outputs),
+    )
+
+
+def kv_cache_size_bytes(
+    *,
+    n_layers: int,
+    batch_size: int,
+    sequence_length: int,
+    d_model: int,
+    bytes_per_element: int,
+) -> int:
+    """Return theoretical K/V tensor storage for standard multi-head attention."""
+    dimensions = {
+        "n_layers": n_layers,
+        "batch_size": batch_size,
+        "sequence_length": sequence_length,
+        "d_model": d_model,
+        "bytes_per_element": bytes_per_element,
+    }
+    for name, value in dimensions.items():
+        if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+            raise ValueError(f"{name} must be a positive integer")
+    return 2 * n_layers * batch_size * sequence_length * d_model * bytes_per_element
+
+
+def prepare_cached_decode(
+    model: torch.nn.Module,
+    prompt_ids: torch.Tensor,
+) -> tuple[torch.Tensor, ModelKVCache]:
+    """Build an unmeasured prompt cache and its deterministic next-token input."""
+    logits, cache = model(prompt_ids, use_cache=True)
+    next_token = greedy_next_token(logits[:, -1, :])
+    return next_token, cache
+
+
+def benchmark_prefill_cached_decode(
+    model: torch.nn.Module,
+    prompt_ids: torch.Tensor,
+    *,
+    device: torch.device,
+    repetitions: int = 5,
+    warmup_forwards: int = 2,
+) -> PrefillDecodeBenchmarkResult:
+    """Measure full-prompt forward and one-token cached decode independently."""
+    if prompt_ids.ndim != 2 or prompt_ids.shape[0] != 1 or prompt_ids.dtype != torch.long:
+        raise ValueError("prompt_ids must be a torch.long tensor shaped (1, T)")
+    if prompt_ids.shape[1] < 1:
+        raise ValueError("prompt length must be positive")
+    if repetitions < 1:
+        raise ValueError("repetitions must be at least 1")
+    if warmup_forwards < 0:
+        raise ValueError("warmup_forwards must be non-negative")
+
+    was_training = model.training
+    model.eval()
+    prefill_samples: list[float] = []
+    decode_samples: list[float] = []
+    try:
+        with torch.inference_mode():
+            for _ in range(warmup_forwards):
+                model(prompt_ids)
+            synchronize_device(device)
+
+            for _ in range(repetitions):
+                synchronize_device(device)
+                started_at = time.perf_counter()
+                model(prompt_ids)
+                synchronize_device(device)
+                prefill_samples.append((time.perf_counter() - started_at) * 1000.0)
+
+            next_token, baseline_cache = prepare_cached_decode(model, prompt_ids)
+            synchronize_device(device)
+            for _ in range(warmup_forwards):
+                model(next_token, use_cache=True, kv_cache=baseline_cache)
+            synchronize_device(device)
+
+            updated_cache: ModelKVCache | None = None
+            for _ in range(repetitions):
+                synchronize_device(device)
+                started_at = time.perf_counter()
+                _, updated_cache = model(next_token, use_cache=True, kv_cache=baseline_cache)
+                synchronize_device(device)
+                decode_samples.append((time.perf_counter() - started_at) * 1000.0)
+
+            if updated_cache is None:
+                raise RuntimeError("cached decode produced no measured cache")
+            for baseline_layer, updated_layer in zip(baseline_cache, updated_cache, strict=True):
+                if updated_layer[0].shape[2] != baseline_layer[0].shape[2] + 1:
+                    raise RuntimeError("cached decode must grow every layer cache by one token")
+    finally:
+        model.train(was_training)
+
+    return PrefillDecodeBenchmarkResult(
+        sequence_length=prompt_ids.shape[1],
+        median_prefill_ms=float(median(prefill_samples)),
+        median_cached_decode_ms=float(median(decode_samples)),
     )
