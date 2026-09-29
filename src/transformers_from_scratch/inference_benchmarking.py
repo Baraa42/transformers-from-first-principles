@@ -108,6 +108,17 @@ class PrefillDecodeBenchmarkResult:
     median_cached_decode_ms: float
 
 
+@dataclass(frozen=True)
+class CachedDecodeBatchBenchmarkResult:
+    """Median latency and throughput for one static cached-decode batch."""
+
+    batch_size: int
+    context_length: int
+    median_decode_step_ms: float
+    aggregate_tokens_per_sec: float
+    per_sequence_tokens_per_sec: float
+
+
 def construct_exact_prompt(
     source_token_ids: Sequence[int],
     prompt_length: int,
@@ -626,6 +637,105 @@ def prepare_cached_decode(
     logits, cache = model(prompt_ids, use_cache=True)
     next_token = greedy_next_token(logits[:, -1, :])
     return next_token, cache
+
+
+def calculate_cached_decode_batch_metrics(
+    *,
+    batch_size: int,
+    context_length: int,
+    decode_step_ms: float,
+) -> CachedDecodeBatchBenchmarkResult:
+    """Calculate latency and token rates for one static decode batch."""
+    if isinstance(batch_size, bool) or not isinstance(batch_size, int) or batch_size < 1:
+        raise ValueError("batch_size must be a positive integer")
+    if (
+        isinstance(context_length, bool)
+        or not isinstance(context_length, int)
+        or context_length < 1
+    ):
+        raise ValueError("context_length must be a positive integer")
+    if decode_step_ms <= 0:
+        raise ValueError("decode_step_ms must be positive")
+
+    seconds_per_step = decode_step_ms / 1000.0
+    return CachedDecodeBatchBenchmarkResult(
+        batch_size=batch_size,
+        context_length=context_length,
+        median_decode_step_ms=decode_step_ms,
+        aggregate_tokens_per_sec=batch_size / seconds_per_step,
+        per_sequence_tokens_per_sec=1.0 / seconds_per_step,
+    )
+
+
+def benchmark_cached_decode_batch(
+    model: torch.nn.Module,
+    prompt_ids: torch.Tensor,
+    *,
+    device: torch.device,
+    repetitions: int = 5,
+    warmup_forwards: int = 2,
+    block_iterations: int = 50,
+) -> CachedDecodeBatchBenchmarkResult:
+    """Measure a fixed-cache one-token decode step for a static batch."""
+    if prompt_ids.ndim != 2 or prompt_ids.dtype != torch.long:
+        raise ValueError("prompt_ids must be a torch.long tensor shaped (B, T)")
+    batch_size, context_length = prompt_ids.shape
+    if batch_size < 1 or context_length < 1:
+        raise ValueError("prompt batch and context dimensions must be positive")
+    if repetitions < 1:
+        raise ValueError("repetitions must be at least 1")
+    if warmup_forwards < 0:
+        raise ValueError("warmup_forwards must be non-negative")
+    if block_iterations < 1:
+        raise ValueError("block_iterations must be at least 1")
+
+    was_training = model.training
+    model.eval()
+    decode_samples: list[float] = []
+    try:
+        with torch.inference_mode():
+            next_tokens, baseline_cache = prepare_cached_decode(model, prompt_ids)
+            if next_tokens.shape != (batch_size, 1):
+                raise RuntimeError("cached decode input must be shaped (B, 1)")
+
+            for layer_cache in baseline_cache:
+                for cached_tensor in layer_cache:
+                    if cached_tensor.shape[0] != batch_size:
+                        raise RuntimeError("cache batch dimension must match prompt batch")
+                    if cached_tensor.shape[2] != context_length:
+                        raise RuntimeError("baseline cache length must match prompt length")
+
+            for _ in range(warmup_forwards):
+                model(next_tokens, use_cache=True, kv_cache=baseline_cache)
+            synchronize_device(device)
+
+            updated_cache: ModelKVCache | None = None
+            for _ in range(repetitions):
+                synchronize_device(device)
+                started_at = time.perf_counter()
+                for _ in range(block_iterations):
+                    _, updated_cache = model(
+                        next_tokens,
+                        use_cache=True,
+                        kv_cache=baseline_cache,
+                    )
+                synchronize_device(device)
+                block_total_ms = (time.perf_counter() - started_at) * 1000.0
+                decode_samples.append(block_total_ms / block_iterations)
+
+            if updated_cache is None:
+                raise RuntimeError("cached decode produced no measured cache")
+            for baseline_layer, updated_layer in zip(baseline_cache, updated_cache, strict=True):
+                if updated_layer[0].shape[2] != baseline_layer[0].shape[2] + 1:
+                    raise RuntimeError("cached decode must grow every layer cache by one token")
+    finally:
+        model.train(was_training)
+
+    return calculate_cached_decode_batch_metrics(
+        batch_size=batch_size,
+        context_length=context_length,
+        decode_step_ms=float(median(decode_samples)),
+    )
 
 
 def benchmark_prefill_cached_decode(

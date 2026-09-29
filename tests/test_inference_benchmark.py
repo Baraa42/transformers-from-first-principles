@@ -2,10 +2,12 @@ import pytest
 import torch
 
 from transformers_from_scratch.inference_benchmarking import (
+    benchmark_cached_decode_batch,
     benchmark_cached_greedy,
     benchmark_prefill_cached_decode,
     benchmark_uncached_greedy,
     benchmark_uncached_repetitions,
+    calculate_cached_decode_batch_metrics,
     calculate_cached_inference_metrics,
     calculate_inference_metrics,
     construct_exact_prompt,
@@ -260,12 +262,14 @@ class RecordingTinyDecoderLM(TinyDecoderLM):
     def __init__(self) -> None:
         super().__init__(vocab_size=8, d_model=8, n_heads=2, d_ff=16, n_layers=1)
         self.forward_lengths: list[int] = []
+        self.received_cache_batch_sizes: list[int] = []
         self.received_cache_lengths: list[int] = []
 
     def forward(self, token_ids: torch.Tensor, **kwargs):
         self.forward_lengths.append(token_ids.shape[1])
         kv_cache = kwargs.get("kv_cache")
         if kv_cache is not None:
+            self.received_cache_batch_sizes.append(kv_cache[0][0].shape[0])
             self.received_cache_lengths.append(kv_cache[0][0].shape[2])
         return super().forward(token_ids, **kwargs)
 
@@ -373,3 +377,47 @@ def test_prefill_decode_block_requires_positive_iteration_count() -> None:
             device=torch.device("cpu"),
             block_iterations=0,
         )
+
+
+def test_prepare_cached_decode_supports_batched_prompts() -> None:
+    torch.manual_seed(31)
+    model = TinyDecoderLM(vocab_size=8, d_model=8, n_heads=2, d_ff=16, n_layers=2)
+    prompt = torch.tensor([[1, 2, 3], [4, 5, 6]], dtype=torch.long)
+
+    with torch.inference_mode():
+        next_tokens, cache = prepare_cached_decode(model, prompt)
+
+    assert next_tokens.shape == (2, 1)
+    assert all(layer_cache[0].shape[:3] == (2, 2, 3) for layer_cache in cache)
+    assert all(layer_cache[1].shape[:3] == (2, 2, 3) for layer_cache in cache)
+
+
+def test_cached_decode_batch_reuses_fixed_baseline_cache() -> None:
+    torch.manual_seed(37)
+    model = RecordingTinyDecoderLM()
+    prompt = torch.tensor([[1, 2, 3], [4, 5, 6]], dtype=torch.long)
+
+    result = benchmark_cached_decode_batch(
+        model,
+        prompt,
+        device=torch.device("cpu"),
+        repetitions=2,
+        warmup_forwards=1,
+        block_iterations=3,
+    )
+
+    assert result.batch_size == 2
+    assert result.context_length == 3
+    assert model.received_cache_batch_sizes == [2] * 7
+    assert model.received_cache_lengths == [3] * 7
+
+
+def test_cached_decode_batch_metric_math() -> None:
+    result = calculate_cached_decode_batch_metrics(
+        batch_size=4,
+        context_length=128,
+        decode_step_ms=2.0,
+    )
+
+    assert result.aggregate_tokens_per_sec == pytest.approx(2_000.0)
+    assert result.per_sequence_tokens_per_sec == pytest.approx(500.0)
