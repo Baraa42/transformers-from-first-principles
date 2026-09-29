@@ -175,6 +175,9 @@ timing.
 See [Training Performance Notes](docs/performance.md) for methodology, benchmark tables,
 and detailed findings.
 
+See [Inference Systems Notes](docs/inference.md) for autoregressive decoding, KV caching,
+RoPE offsets, prefill/decode behavior, and batching trade-offs.
+
 Benchmark commands:
 
 ```bash
