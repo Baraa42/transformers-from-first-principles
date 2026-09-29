@@ -373,3 +373,135 @@ time improved by roughly 19% while training metrics remained unchanged.
 On asynchronous accelerators, CPU profiler attribution must be interpreted carefully:
 operations such as scalar reads or copies may appear expensive because they become
 synchronization boundaries for previously queued device work.
+
+## Stage 6.4 — Prefill vs Cached Decode
+
+Stage 6.4 measured full-prompt prefill and one-token cached decode independently on Apple
+MPS in FP32 with batch size 1. To reduce the fixed synchronization and timer overhead that
+distorted the earlier per-operation measurements, each sample timed 50 identical forwards
+inside one synchronized block. The reported value is:
+
+```text
+median(
+    synchronized block total / 50 identical forwards
+)
+```
+
+The benchmark used five repetitions for each sequence length:
+
+```text
+device=mps
+precision=fp32
+batch_size=1
+block_iterations=50
+repetitions=5
+```
+
+| T   | Prefill ms | Cached decode ms | KV cache MiB |
+| --: | ---------: | ---------------: | -----------: |
+|  32 |      1.053 |            1.012 |        0.125 |
+|  64 |      1.009 |            0.939 |        0.250 |
+| 128 |      0.989 |            0.964 |        0.500 |
+| 256 |      1.253 |            1.402 |        1.000 |
+| 512 |      1.308 |            1.095 |        2.000 |
+
+### Prefill
+
+Prefill processes the entire prompt in parallel. For an input shaped `(B, T)`, the
+attention tensors have shapes:
+
+```text
+Q, K, V:          (B, H, T, d_head)
+attention scores: (B, H, T, T)
+```
+
+Constructing and applying the attention score matrix requires approximately `O(T^2)`
+work. This statement applies to the attention portion of the model, not the entire
+Transformer: projections, MLPs, normalization, and other operations have different
+sequence-length scaling.
+
+### Cached decode
+
+For one new token with a cache containing `T` previous positions, the relevant shapes are:
+
+```text
+input:             (B, 1)
+Q_new:             (B, H, 1, d_head)
+K_cache, V_cache:  (B, H, T, d_head)
+attention scores:  (B, H, 1, T + 1)
+```
+
+Only the new token's Q, K, and V projections are computed; the preceding K/V tensors are
+reused. Attention work for each decoded token is therefore approximately `O(T)`, rather
+than recomputing attention over the full prefix. Generation still decodes tokens
+sequentially because each new token depends on the preceding output.
+
+### KV-cache memory
+
+For a standard multi-head cache, the number of stored K/V elements is:
+
+```text
+KV elements = 2 * L * B * T * d_model
+```
+
+The corresponding storage is:
+
+```text
+KV memory = 2 * L * B * T * d_model * bytes_per_element
+```
+
+For this four-layer, `d_model=128` model in FP32, the theoretical cache sizes are:
+
+```text
+T=32  -> 0.125 MiB
+T=64  -> 0.250 MiB
+T=128 -> 0.500 MiB
+T=256 -> 1.000 MiB
+T=512 -> 2.000 MiB
+```
+
+KV-cache memory scales linearly with context length.
+
+### Measurement interpretation
+
+Cached decode remains roughly around 1 ms over the measured range, while prefill begins
+increasing somewhat at the larger sequence lengths. Neither curve cleanly exposes its
+theoretical asymptotic scaling. This is not contradictory: the benchmark uses a very small
+four-layer, `d_model=128`, batch-1 model on MPS. Fixed overhead, kernel dispatch,
+utilization, and non-attention operations remain a large fraction of the total runtime.
+
+The algorithmic complexity difference is real, but it only becomes clearly visible in
+wall-clock latency once the sequence-dependent work becomes a significant fraction of
+total runtime. These measurements do not isolate a specific hardware bottleneck.
+
+The earlier Stage 6.3 end-to-end cached-versus-uncached comparison reported:
+
+```text
+P=32   speedup 1.037x
+P=64   speedup 1.039x
+P=128  speedup 1.064x
+P=256  speedup 0.980x
+```
+
+Cached and uncached greedy outputs matched exactly, establishing correctness. The timings
+showed no material realized KV-cache speedup for this tiny MPS workload. That is a
+workload-specific result, not evidence that KV caching is ineffective in general.
+
+### Systems summary
+
+Prefill:
+
+- processes prompt tokens in parallel;
+- has attention-score work that grows quadratically with sequence length;
+- is the compute-oriented phase of inference.
+
+Decode:
+
+- processes one token at a time;
+- reuses K/V tensors from previous tokens;
+- has attention work that grows linearly with cache length per token;
+- is inherently sequential across generated tokens;
+- has KV-cache memory that grows linearly with context length.
+
+Real serving systems must manage both latency and throughput. That trade-off motivates the
+next stage on inference batching.
