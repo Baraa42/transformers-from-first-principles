@@ -635,6 +635,7 @@ def benchmark_prefill_cached_decode(
     device: torch.device,
     repetitions: int = 5,
     warmup_forwards: int = 2,
+    block_iterations: int = 50,
 ) -> PrefillDecodeBenchmarkResult:
     """Measure full-prompt forward and one-token cached decode independently."""
     if prompt_ids.ndim != 2 or prompt_ids.shape[0] != 1 or prompt_ids.dtype != torch.long:
@@ -645,6 +646,8 @@ def benchmark_prefill_cached_decode(
         raise ValueError("repetitions must be at least 1")
     if warmup_forwards < 0:
         raise ValueError("warmup_forwards must be non-negative")
+    if block_iterations < 1:
+        raise ValueError("block_iterations must be at least 1")
 
     was_training = model.training
     model.eval()
@@ -659,9 +662,11 @@ def benchmark_prefill_cached_decode(
             for _ in range(repetitions):
                 synchronize_device(device)
                 started_at = time.perf_counter()
-                model(prompt_ids)
+                for _ in range(block_iterations):
+                    model(prompt_ids)
                 synchronize_device(device)
-                prefill_samples.append((time.perf_counter() - started_at) * 1000.0)
+                block_total_ms = (time.perf_counter() - started_at) * 1000.0
+                prefill_samples.append(block_total_ms / block_iterations)
 
             next_token, baseline_cache = prepare_cached_decode(model, prompt_ids)
             synchronize_device(device)
@@ -673,9 +678,11 @@ def benchmark_prefill_cached_decode(
             for _ in range(repetitions):
                 synchronize_device(device)
                 started_at = time.perf_counter()
-                _, updated_cache = model(next_token, use_cache=True, kv_cache=baseline_cache)
+                for _ in range(block_iterations):
+                    _, updated_cache = model(next_token, use_cache=True, kv_cache=baseline_cache)
                 synchronize_device(device)
-                decode_samples.append((time.perf_counter() - started_at) * 1000.0)
+                block_total_ms = (time.perf_counter() - started_at) * 1000.0
+                decode_samples.append(block_total_ms / block_iterations)
 
             if updated_cache is None:
                 raise RuntimeError("cached decode produced no measured cache")

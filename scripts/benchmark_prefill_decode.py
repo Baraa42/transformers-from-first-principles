@@ -20,6 +20,7 @@ SEQUENCE_LENGTHS = (32, 64, 128, 256, 512)
 BATCH_SIZE = 1
 REPETITIONS = 5
 WARMUP_FORWARDS = 2
+BLOCK_ITERATIONS = 50
 BYTES_PER_ELEMENT = 4
 
 
@@ -57,6 +58,7 @@ def main() -> None:
             device=device,
             repetitions=REPETITIONS,
             warmup_forwards=WARMUP_FORWARDS,
+            block_iterations=BLOCK_ITERATIONS,
         )
         cache_bytes = kv_cache_size_bytes(
             n_layers=len(model.blocks),
@@ -69,7 +71,11 @@ def main() -> None:
 
     print(f"device={device.type}")
     print("precision=fp32 batch_size=1")
-    print(f"repetitions={REPETITIONS} warmup_forwards={WARMUP_FORWARDS}")
+    print(
+        f"block_iterations={BLOCK_ITERATIONS} repetitions={REPETITIONS} "
+        f"warmup_forwards={WARMUP_FORWARDS}"
+    )
+    print("reported_latency=synchronized block total / block_iterations")
     print(
         "note=sequence lengths above training context are systems/performance measurements, "
         "not language-model-quality claims"

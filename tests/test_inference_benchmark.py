@@ -3,6 +3,7 @@ import torch
 
 from transformers_from_scratch.inference_benchmarking import (
     benchmark_cached_greedy,
+    benchmark_prefill_cached_decode,
     benchmark_uncached_greedy,
     benchmark_uncached_repetitions,
     calculate_cached_inference_metrics,
@@ -259,9 +260,13 @@ class RecordingTinyDecoderLM(TinyDecoderLM):
     def __init__(self) -> None:
         super().__init__(vocab_size=8, d_model=8, n_heads=2, d_ff=16, n_layers=1)
         self.forward_lengths: list[int] = []
+        self.received_cache_lengths: list[int] = []
 
     def forward(self, token_ids: torch.Tensor, **kwargs):
         self.forward_lengths.append(token_ids.shape[1])
+        kv_cache = kwargs.get("kv_cache")
+        if kv_cache is not None:
+            self.received_cache_lengths.append(kv_cache[0][0].shape[2])
         return super().forward(token_ids, **kwargs)
 
 
@@ -337,3 +342,34 @@ def test_prepare_cached_decode_uses_one_token_and_grows_cache() -> None:
     assert all(layer_cache[1].shape[2] == 3 for layer_cache in cache)
     assert all(layer_cache[0].shape[2] == 4 for layer_cache in updated_cache)
     assert all(layer_cache[1].shape[2] == 4 for layer_cache in updated_cache)
+
+
+def test_prefill_decode_block_reuses_fixed_baseline_cache() -> None:
+    torch.manual_seed(29)
+    model = RecordingTinyDecoderLM()
+    prompt = torch.tensor([[1, 2, 3]], dtype=torch.long)
+
+    result = benchmark_prefill_cached_decode(
+        model,
+        prompt,
+        device=torch.device("cpu"),
+        repetitions=2,
+        warmup_forwards=1,
+        block_iterations=3,
+    )
+
+    assert result.sequence_length == 3
+    assert model.received_cache_lengths == [3] * 7
+
+
+def test_prefill_decode_block_requires_positive_iteration_count() -> None:
+    model = RecordingTinyDecoderLM()
+    prompt = torch.tensor([[1, 2, 3]], dtype=torch.long)
+
+    with pytest.raises(ValueError, match="block_iterations must be at least 1"):
+        benchmark_prefill_cached_decode(
+            model,
+            prompt,
+            device=torch.device("cpu"),
+            block_iterations=0,
+        )
