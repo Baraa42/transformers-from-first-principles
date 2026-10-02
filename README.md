@@ -65,8 +65,9 @@ TinyStories
 
 The model returns raw logits; loss remains outside `TinyDecoderLM.forward()`.
 The current training system includes optional mixed precision and opt-in manual timing
-diagnostics. Schedulers/warmup and distributed training remain out of scope; KV-cached
-autoregressive inference is the next systems block.
+diagnostics. The current inference system includes KV-cached autoregressive decoding and
+static batching experiments; continuous batching and more advanced serving systems remain
+out of scope.
 
 ## Setup and commands
 
