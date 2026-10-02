@@ -31,13 +31,16 @@ def apply_rope(
         dtype=freq.dtype,
     )
     angles = positions[:, None] * freq[None, :]
-    cos = torch.cos(angles)[None, None, :, :, None]
-    sin = torch.sin(angles)[None, None, :, :, None]
+    cos = torch.cos(angles)[None, None, :, :]
+    sin = torch.sin(angles)[None, None, :, :]
     # (B, H, n, d_head) -> (B, H, n, d_head / 2, 2), then rotate and flatten.
     pairs = x.reshape(*x.shape[:-1], d_head // 2, 2)
     x_even, x_odd = pairs.unbind(dim=-1)
     rotated = torch.stack(
-        (x_even * cos[..., 0] - x_odd * sin[..., 0], x_even * sin[..., 0] + x_odd * cos[..., 0]),
+        (
+            x_even * cos - x_odd * sin,
+            x_even * sin + x_odd * cos,
+        ),
         dim=-1,
     )
     return rotated.flatten(start_dim=-2)
