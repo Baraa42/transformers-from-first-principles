@@ -1,4 +1,5 @@
 import torch
+from torch.utils.data import RandomSampler, SequentialSampler
 
 import transformers_from_scratch.data as data
 from transformers_from_scratch.data import CausalWindowDataset, create_dataloaders
@@ -26,6 +27,38 @@ def test_load_tokenizer_uses_dataset_repository(monkeypatch) -> None:
     }
 
 
+def test_text_splits_select_disjoint_story_ranges_before_tokenization(monkeypatch) -> None:
+    stories = [f"story-{index}" for index in range(30)]
+
+    class FakeDataset:
+        def __init__(self, texts: list[str]) -> None:
+            self.texts = texts
+
+        def __len__(self) -> int:
+            return len(self.texts)
+
+        def select(self, indices: range) -> "FakeDataset":
+            return FakeDataset([self.texts[index] for index in indices])
+
+        def __getitem__(self, key: str) -> list[str]:
+            assert key == "text"
+            return self.texts
+
+    monkeypatch.setattr(data, "load_dataset", lambda name, split: FakeDataset(stories))
+
+    train, validation = data.load_tinystories_text_splits(
+        "test/tinystories",
+        train_stories=3,
+        val_stories=2,
+        validation_start=4,
+        train_start=20,
+    )
+
+    assert validation == ["story-4", "story-5"]
+    assert train == ["story-20", "story-21", "story-22"]
+    assert set(train).isdisjoint(validation)
+
+
 def test_causal_window_shift_shape_and_dtype() -> None:
     dataset = CausalWindowDataset([[10, 11, 12, 13, 14]], context_length=4)
     input_ids, targets = dataset[0]
@@ -42,6 +75,20 @@ def test_short_stories_do_not_create_windows() -> None:
     assert len(dataset) == 0
 
 
+def test_causal_windows_never_cross_story_boundaries() -> None:
+    dataset = CausalWindowDataset(
+        [[1, 2, 3], [100, 101, 102]],
+        context_length=2,
+    )
+
+    examples = [(inputs.tolist(), targets.tolist()) for inputs, targets in dataset]
+
+    assert examples == [
+        ([1, 2], [2, 3]),
+        ([100, 101], [101, 102]),
+    ]
+
+
 def test_dataloader_batches_are_two_dimensional() -> None:
     train_loader, val_loader = create_dataloaders(
         [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]],
@@ -53,6 +100,8 @@ def test_dataloader_batches_are_two_dimensional() -> None:
     val_inputs, val_targets = next(iter(val_loader))
     assert inputs.shape == targets.shape == (2, 4)
     assert val_inputs.shape == val_targets.shape == (1, 4)
+    assert isinstance(train_loader.sampler, RandomSampler)
+    assert isinstance(val_loader.sampler, SequentialSampler)
 
 
 def test_training_loader_drops_an_incomplete_batch() -> None:
