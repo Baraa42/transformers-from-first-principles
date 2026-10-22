@@ -239,7 +239,12 @@ def complete_optimizer_step(
     return grad_norm, did_step
 
 
-def optimizer_step(*, precision: str, optimizer: torch.optim.Optimizer, scaler: Any | None) -> bool:
+def optimizer_step(
+    *,
+    precision: str,
+    optimizer: torch.optim.Optimizer,
+    scaler: torch.amp.GradScaler | None,
+) -> bool:
     """Perform one update and return whether it actually occurred."""
     validate_precision_state(precision, scaler)
     if precision != "fp16":

@@ -97,7 +97,7 @@ class SelfAttention(nn.Module):
             scores = scores.masked_fill(mask, float("-inf"))
         attn = torch.softmax(scores, dim=-1)
         # attention @ V -> (B, H, n, d_head); concatenate heads -> (B, n, d_model).
-        output = (attn @ v).transpose(1, 2).contiguous().view(B, n, self.d_model)
+        output = (attn @ v).transpose(1, 2).reshape(B, n, self.d_model)
         output = self.Wo(output)
 
         if use_cache:
