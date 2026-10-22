@@ -88,10 +88,53 @@ def generate_greedy_cached(
     token one, and the final generated token is not fed back into the model.
     Cache eviction is not implemented.
     """
+    return generate_cached(
+        model,
+        input_ids,
+        max_new_tokens=max_new_tokens,
+        context_length=context_length,
+        do_sample=False,
+    )
+
+
+def generate_cached(
+    model: torch.nn.Module,
+    input_ids: torch.Tensor,
+    *,
+    max_new_tokens: int,
+    context_length: int,
+    do_sample: bool,
+    temperature: float = 1.0,
+    top_k: int | None = None,
+    top_p: float | None = None,
+    eos_token_id: int | None = None,
+) -> torch.Tensor:
+    """Generate with one prefill followed by single-token cached decode steps.
+
+    ``do_sample=False`` selects argmax tokens and ignores sampling controls.
+    EOS stopping is deliberately limited to a single sequence; serving one
+    prompt at a time avoids introducing batched-EOS state management here.
+    """
     if input_ids.ndim != 2 or input_ids.dtype != torch.long:
         raise ValueError("input_ids must be a torch.long tensor shaped (B, T)")
     if max_new_tokens < 0 or context_length < 1:
         raise ValueError("max_new_tokens must be non-negative and context_length positive")
+    if input_ids.shape[1] < 1:
+        raise ValueError("input_ids must contain at least one token")
+    if do_sample:
+        if temperature <= 0:
+            raise ValueError("temperature must be positive")
+        if top_k is not None and top_k < 1:
+            raise ValueError("top_k must be positive")
+        if top_p is not None and not 0 < top_p <= 1:
+            raise ValueError("top_p must be in (0, 1]")
+    if eos_token_id is not None:
+        if isinstance(eos_token_id, bool) or not isinstance(eos_token_id, int):
+            raise ValueError("eos_token_id must be a non-negative integer")
+        if eos_token_id < 0:
+            raise ValueError("eos_token_id must be a non-negative integer")
+        if input_ids.shape[0] != 1:
+            raise ValueError("EOS stopping supports one sequence at a time")
     if max_new_tokens > 0:
         required_context = input_ids.shape[1] + max_new_tokens - 1
         if required_context > context_length:
@@ -106,13 +149,22 @@ def generate_greedy_cached(
                 return generated
 
             logits, cache = model(input_ids, use_cache=True)
-            next_token = greedy_next_token(logits[:, -1, :])
-            generated = torch.cat((generated, next_token), dim=1)
-
-            for _ in range(max_new_tokens - 1):
-                logits, cache = model(next_token, use_cache=True, kv_cache=cache)
-                next_token = greedy_next_token(logits[:, -1, :])
+            next_token = input_ids[:, -1:]
+            for token_index in range(max_new_tokens):
+                if token_index > 0:
+                    logits, cache = model(next_token, use_cache=True, kv_cache=cache)
+                if do_sample:
+                    next_token = sample_next_token(
+                        logits[:, -1, :],
+                        temperature=temperature,
+                        top_k=top_k,
+                        top_p=top_p,
+                    )
+                else:
+                    next_token = greedy_next_token(logits[:, -1, :])
                 generated = torch.cat((generated, next_token), dim=1)
+                if eos_token_id is not None and next_token.item() == eos_token_id:
+                    break
     finally:
         model.train(was_training)
     return generated

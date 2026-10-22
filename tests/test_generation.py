@@ -3,6 +3,7 @@ import torch
 
 from transformers_from_scratch.generation import (
     generate,
+    generate_cached,
     generate_greedy,
     generate_greedy_cached,
     greedy_next_token,
@@ -101,6 +102,56 @@ def test_cached_greedy_single_token_matches_uncached_prefill() -> None:
     cached = generate_greedy_cached(model, input_ids, max_new_tokens=1, context_length=5)
 
     assert torch.equal(cached, uncached)
+
+
+def test_cached_sampling_uses_prefill_then_single_token_decode() -> None:
+    class CacheSpy(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.model = TinyDecoderLM(
+                vocab_size=17,
+                d_model=16,
+                n_heads=4,
+                d_ff=32,
+                n_layers=2,
+            )
+            self.call_lengths: list[int] = []
+
+        def forward(self, input_ids: torch.Tensor, *, use_cache=False, kv_cache=None):
+            self.call_lengths.append(input_ids.shape[1])
+            return self.model(input_ids, use_cache=use_cache, kv_cache=kv_cache)
+
+    model = CacheSpy()
+    output = generate_cached(
+        model,
+        torch.randint(0, 17, (1, 4)),
+        max_new_tokens=4,
+        context_length=7,
+        do_sample=True,
+        top_k=1,
+    )
+
+    assert output.shape == (1, 8)
+    assert model.call_lengths == [4, 1, 1, 1]
+
+
+def test_cached_generation_stops_after_eos() -> None:
+    class EosModel(torch.nn.Module):
+        def forward(self, input_ids: torch.Tensor, *, use_cache=False, kv_cache=None):
+            logits = torch.zeros((*input_ids.shape, 8))
+            logits[..., 7] = 1
+            return logits, object()
+
+    output = generate_cached(
+        EosModel(),
+        torch.tensor([[1, 2]], dtype=torch.long),
+        max_new_tokens=4,
+        context_length=5,
+        do_sample=False,
+        eos_token_id=7,
+    )
+
+    assert torch.equal(output, torch.tensor([[1, 2, 7]], dtype=torch.long))
 
 
 def test_cached_greedy_prefills_once_then_forwards_one_token_with_cache() -> None:

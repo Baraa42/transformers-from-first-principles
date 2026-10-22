@@ -14,6 +14,8 @@ dependencies = [
     "scikit-learn (>=1.9.1,<2.0.0)",
     "pyyaml (>=6.0.3,<7.0.0)",
     "huggingface-hub (>=1.32.0,<2.0.0)",
+    "fastapi (>=0.159.1,<0.160.0)",
+    "uvicorn (>=0.54.0,<0.55.0)",
 ]
 
 [tool.poetry]
@@ -24,6 +26,9 @@ pytest = "*"
 ruff = "*"
 jupyterlab = "^4.6.3"
 ipywidgets = "^8.1.9"
+jax = "^0.11.2"
+transformers = "^5.19.0"
+httpx = "^0.28.1"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
