@@ -5,11 +5,11 @@ from __future__ import annotations
 import logging
 import os
 import threading
-import time
 from collections.abc import Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
+from time import perf_counter
 from typing import Any
 
 import torch
@@ -218,11 +218,11 @@ def create_app(
 
     @app.post("/generate", response_model=GenerationResponse)
     def generate_text(payload: GenerationRequest, request: Request) -> GenerationResponse:
+        started_at = perf_counter()
         runtime = _runtime(request)
         prompt_ids = _encode_and_validate(runtime, payload)
         input_ids = torch.tensor([prompt_ids], dtype=torch.long, device=runtime.device)
 
-        started_at = time.perf_counter()
         try:
             with runtime.inference_lock:
                 output_ids = generate_cached(
@@ -241,12 +241,12 @@ def create_app(
             LOGGER.exception("generation failed")
             raise HTTPException(status_code=500, detail="inference failed") from error
 
-        latency_ms = (time.perf_counter() - started_at) * 1000.0
         generated_tokens = output_ids.shape[1] - len(prompt_ids)
         generated_text = runtime.tokenizer.decode(
             output_ids[0].detach().cpu().tolist(),
             skip_special_tokens=True,
         )
+        latency_ms = (perf_counter() - started_at) * 1000.0
         return GenerationResponse(
             generated_text=generated_text,
             prompt_tokens=len(prompt_ids),

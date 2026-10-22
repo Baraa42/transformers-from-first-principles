@@ -59,6 +59,19 @@ which reduces inference memory and overhead; it does not change the trained para
 Set `do_sample` to `false` for deterministic greedy generation. When it is `true` (the default),
 `temperature`, `top_k`, and `top_p` control sampling.
 
+`latency_ms` starts when the route handler begins and ends after output decoding. It includes
+tokenization, request-specific vocabulary/context validation, input tensor construction and
+device transfer, inference-lock queueing, cached model inference, accelerator synchronization,
+the device-to-CPU output transfer, and tokenizer decoding. FastAPI has already parsed and
+schema-validated the request before the handler starts; HTTP transport, framework routing before
+the handler, and response serialization are not included. End-to-end HTTP latency is therefore a
+separate measurement reserved for the later HTTP benchmarking block.
+
+EOS detection reads the newly selected token with `.item()`. On accelerators this can introduce a
+device synchronization on each decode step. The MVP intentionally accepts that overhead to keep
+single-sequence early stopping correct and understandable; it does not claim an optimized
+asynchronous EOS path.
+
 ## Endpoints
 
 Check lifecycle state:

@@ -5,6 +5,7 @@ import pytest
 import torch
 from fastapi.testclient import TestClient
 
+import transformers_from_scratch.serving as serving
 from transformers_from_scratch.serving import ModelRuntime, ServingSettings, create_app
 
 
@@ -171,6 +172,83 @@ def test_generate_reports_eos_early_stopping(app_factory) -> None:
 
     assert response.status_code == 200
     assert response.json()["generated_tokens"] == 1
+    assert response.json()["generated_text"] == "1 2"
+
+
+def test_context_limit_accepts_exact_boundary_and_rejects_one_past(app_factory) -> None:
+    make_app, _, _ = app_factory
+    with TestClient(make_app(context_length=5)) as client:
+        exact = client.post(
+            "/generate",
+            json={"prompt": "ok", "max_new_tokens": 4, "do_sample": False},
+        )
+        overflow = client.post(
+            "/generate",
+            json={"prompt": "ok", "max_new_tokens": 5, "do_sample": False},
+        )
+
+    assert exact.status_code == 200
+    assert exact.json()["generated_tokens"] == 4
+    assert overflow.status_code == 422
+    assert "require 6 cached positions" in overflow.json()["detail"]
+
+
+def test_latency_covers_tokenization_lock_inference_sync_and_decode(monkeypatch) -> None:
+    class ManualClock:
+        value = 0.0
+
+        def advance(self, seconds: float) -> None:
+            self.value += seconds
+
+    clock = ManualClock()
+
+    class TimedTokenizer(FakeTokenizer):
+        def encode(self, prompt: str) -> SimpleNamespace:
+            clock.advance(0.002)
+            return super().encode(prompt)
+
+        def decode(self, ids: list[int], *, skip_special_tokens: bool) -> str:
+            clock.advance(0.003)
+            return super().decode(ids, skip_special_tokens=skip_special_tokens)
+
+    class TimedModel(FakeCachedModel):
+        def forward(self, input_ids: torch.Tensor, *, use_cache=False, kv_cache=None):
+            clock.advance(0.004)
+            return super().forward(input_ids, use_cache=use_cache, kv_cache=kv_cache)
+
+    class TimedLock:
+        def __enter__(self):
+            clock.advance(0.005)
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+    def loader(settings: ServingSettings) -> ModelRuntime:
+        runtime = ModelRuntime(
+            model=TimedModel(),
+            tokenizer=TimedTokenizer(),
+            device=torch.device("cpu"),
+            checkpoint_path=settings.checkpoint_path,
+            context_length=5,
+            vocab_size=64,
+            eos_token_id=7,
+        )
+        runtime.inference_lock = TimedLock()
+        return runtime
+
+    monkeypatch.setattr(serving, "perf_counter", lambda: clock.value)
+    monkeypatch.setattr(serving, "synchronize_device", lambda device: clock.advance(0.006))
+    app = create_app(ServingSettings(Path("test.pt"), "cpu"), runtime_loader=loader)
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/generate",
+            json={"prompt": "Once", "max_new_tokens": 1, "do_sample": False},
+        )
+
+    assert response.status_code == 200
+    # 2 ms tokenize + 5 ms lock wait + 4 ms model + 6 ms sync + 3 ms decode.
+    assert response.json()["latency_ms"] == pytest.approx(20.0)
 
 
 def test_greedy_endpoint_is_deterministic(app_factory) -> None:

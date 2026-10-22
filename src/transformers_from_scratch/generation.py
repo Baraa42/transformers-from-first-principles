@@ -114,6 +114,8 @@ def generate_cached(
     ``do_sample=False`` selects argmax tokens and ignores sampling controls.
     EOS stopping is deliberately limited to a single sequence; serving one
     prompt at a time avoids introducing batched-EOS state management here.
+    Reading each candidate token for EOS may synchronize an accelerator; this
+    simple correctness-first behavior is intentional for the serving MVP.
     """
     if input_ids.ndim != 2 or input_ids.dtype != torch.long:
         raise ValueError("input_ids must be a torch.long tensor shaped (B, T)")
@@ -163,6 +165,8 @@ def generate_cached(
                 else:
                     next_token = greedy_next_token(logits[:, -1, :])
                 generated = torch.cat((generated, next_token), dim=1)
+                # `.item()` may synchronize an accelerator, but correct early
+                # stopping is preferable to asynchronous EOS machinery here.
                 if eos_token_id is not None and next_token.item() == eos_token_id:
                     break
     finally:
