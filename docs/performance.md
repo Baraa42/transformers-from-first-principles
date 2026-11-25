@@ -1,5 +1,10 @@
 # Training Performance Notes
 
+The tables below retain historical measurements. The final controlled reconstruction
+measured approximately **11% lower whole-step latency**, not a direct reproduction of the
+historical 19.1% figure. See the [training optimization report](training_optimizations.md)
+for the balanced confirmatory experiment, raw timings, source hashes, and limitations.
+
 These results are empirical measurements for one specific environment and workload. They
 are not universal claims about FP16, BF16, PyTorch, or Apple MPS.
 
@@ -209,19 +214,16 @@ That is 54 scalar reads per step:
 810 / 15 = 54
 ```
 
-The source was the original global-gradient-norm implementation, which performed a host
-scalar extraction for every gradient-bearing parameter, effectively calling:
+The historical notes attributed these calls to the standalone per-parameter
+`global_grad_norm()` loop. That attribution is not established: the configured clipped
+training path instead used `clip_grad_norm_(...).item()` and bypassed that loop.
+Non-fused AdamW can also cause scalar reads. Without the original trace, the documented
+810-call count cannot be assigned uniquely to gradient-norm extraction. The controlled
+reconstruction therefore uses the actual clipped path for its baseline.
 
-```python
-gradient.detach().pow(2).sum().item()
-```
+#### Historical intermediate profile
 
-inside a loop over model parameters. On MPS, each repeated `.item()` created a
-device-to-host synchronization boundary.
-
-#### After moving global-norm reduction on-device
-
-After reducing the global gradient norm on-device, the profile reported:
+The next documented profile reported (the original trace is unavailable):
 
 ```text
 aten::_local_scalar_dense
@@ -230,8 +232,8 @@ aten::_local_scalar_dense
 55.52% self CPU
 ```
 
-Thirty calls over 15 steps is exactly two scalar reads per training step. They corresponded
-to:
+Thirty calls over 15 steps is two scalar reads per training step, consistent with the
+following calls in the clipped path; the aggregate count alone does not prove attribution:
 
 ```python
 loss.item()
@@ -241,8 +243,8 @@ clip_grad_norm_(...).item()
 #### After deferring scalar reads to logging boundaries
 
 After device-to-host scalar conversion was deferred to logging boundaries,
-`aten::_local_scalar_dense` disappeared from the profiled hot loop. The complete progression
-was:
+`aten::_local_scalar_dense` was reported to disappear from the profiled hot loop. The
+documented progression, without retained traces for independent verification, was:
 
 ```text
 810 -> 30 -> 0
@@ -355,20 +357,20 @@ val_perplexity=349.66
 | Grad processing |  3.890 ms |    3.793 ms |  3.590 ms |
 | Wall time       |   3.431 s |     2.977 s |   2.755 s |
 
-From the original to the final baseline, median synchronized step time fell from 20.699 ms
+The historical documented values imply median synchronized step time fell from 20.699 ms
 to 16.745 ms, an approximate 19.1% reduction. Wall time fell from 3.431 s to 2.755 s,
 approximately 19.7%, while optimizer-step time fell from 3.154 ms to 1.215 ms,
 approximately 61.5%.
 
 ## Final Stage 5 systems diagnosis
 
-The initial tiny-model workload under-utilized Apple MPS and carried substantial fixed
-parameter-side overhead. Batch scaling improved utilization by amortizing those costs.
-Operator profiling then exposed CPU synchronization and optimizer overhead that were not
-obvious from coarse timing alone. Switching to fused AdamW materially reduced optimizer
-cost, and deferring unnecessary device-to-host scalar reads yielded an additional
-end-to-end gain. Across the full Stage 5 optimization sequence, median synchronized step
-time improved by roughly 19% while training metrics remained unchanged.
+The historical profiles motivated experiments on scalar synchronization and optimizer
+overhead. The 20.699 ms baseline has a retained log; the final 16.745 ms value remains
+documentation-only, without raw step samples. Their implied 19.1% reduction is historical
+and is not a verified reproduction claim. The newer whole-step synthetic reconstruction
+measures approximately 11% lower latency, with less stable incremental fused-optimizer
+gains and an inconclusive deferred-loss increment. Its workload and timing boundaries
+differ from these historical component profiles.
 
 On asynchronous accelerators, CPU profiler attribution must be interpreted carefully:
 operations such as scalar reads or copies may appear expensive because they become

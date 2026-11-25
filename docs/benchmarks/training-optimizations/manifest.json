@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "description": "Byte-preserved successful-run evidence and source snapshots; full correctness traces compressed losslessly.",
+  "original_artifacts": {
+    "benchmarks/training-optimizations/run-001/correctness.json": {
+      "sha256": "fbc7cc78dbcf906b295552130257c6300b548a30d3f4f9c4e2727086a3223a91",
+      "bytes": 19392
+    },
+    "benchmarks/training-optimizations/run-001/metadata.json": {
+      "sha256": "1cd3f8c4c3bfa07493f9cd854188b33db34dbeb815abaaed8a1d95e44cb779ae",
+      "bytes": 3516
+    },
+    "benchmarks/training-optimizations/gate-v3-001/correctness.json": {
+      "sha256": "a433ac2d973390def0d4762c9caead310e0b4fd9b84f2784a735f7051501ac31",
+      "bytes": 4077538
+    },
+    "benchmarks/training-optimizations/gate-v3-001/metadata.json": {
+      "sha256": "453222b71111760fe10ba9a02a211befa8a3f8c0f0c8a158698393dedc7a48a4",
+      "bytes": 3555
+    },
+    "benchmarks/training-optimizations/gate-v2-001/correctness.json": {
+      "sha256": "a621e0b07d425d3af24e32433dba3635c1f4ff678f10a6aaa4e86b36cfceede5",
+      "bytes": 4009309
+    },
+    "benchmarks/training-optimizations/gate-v2-001/metadata.json": {
+      "sha256": "6e95b1a8737d8e801b6ebd549f79ed31f7557b3daaf70d97743d91d33db2cf2b",
+      "bytes": 3555
+    },
+    "benchmarks/training-optimizations/run-002/summary.json": {
+      "sha256": "8901075dda057c8f2d6f3beb99a74e12d6fb7eddd4d33dfa8a30bd135d0883da",
+      "bytes": 7630
+    },
+    "benchmarks/training-optimizations/run-002/correctness.json": {
+      "sha256": "2c3a226f75db90df6afc93468a3cfbc80530503240b132ed0eb29d18dad70cac",
+      "bytes": 4077510
+    },
+    "benchmarks/training-optimizations/run-002/metadata.json": {
+      "sha256": "29621e3a9ca577ca489ea3a0ffb5643a71340b5557ee3210215b0187b8d9e223",
+      "bytes": 15132
+    },
+    "benchmarks/training-optimizations/run-002/steps.csv": {
+      "sha256": "96ffc524a1f7db6442e09282c6be205b16515582e9751be585b0691877db1f48",
+      "bytes": 47069
+    },
+    "benchmarks/training-optimizations/diagnostic-001/metadata.json": {
+      "sha256": "d6b8c5600917090e54695dfeed257882614ca6e52f9dba35304591adf8c07bf4",
+      "bytes": 3678
+    },
+    "benchmarks/training-optimizations/diagnostic-001/diagnostic.json": {
+      "sha256": "822e2e6ec9576388923a676364a150b976aa399ae218749a18d94cb6fe66a922",
+      "bytes": 311465
+    },
+    "benchmarks/training-optimizations/run-003/summary.json": {
+      "sha256": "4f91318be554e19ade430b9cefc9a76f5526c2fddbfbd7395af102e1edfc5bbe",
+      "bytes": 9436
+    },
+    "benchmarks/training-optimizations/run-003/correctness.json": {
+      "sha256": "4a0e7ec0642afc9158c5eccb7c882e008c3b5c3387d3eb78d3121679d577813b",
+      "bytes": 4076797
+    },
+    "benchmarks/training-optimizations/run-003/metadata.json": {
+      "sha256": "c9496cc951e961b615153ed2b8a938b3e119e3223366e93802b36b1896b5d15e",
+      "bytes": 19169
+    },
+    "benchmarks/training-optimizations/run-003/steps.csv": {
+      "sha256": "6d21e484a4a85c4b6172f3adc14b245991f92cf8ea160270ed79c8cd00a7e89c",
+      "bytes": 63174
+    },
+    "benchmarks/training-optimizations/source-snapshots/benchmark_training_optimizations.run-002.d0b0723fcf722882f0829e13b09230c96246ee92587291f473738f22f0d5146f.py": {
+      "sha256": "d0b0723fcf722882f0829e13b09230c96246ee92587291f473738f22f0d5146f",
+      "bytes": 44310
+    }
+  },
+  "files": {
+    "run-002/metadata.json": {
+      "sha256": "29621e3a9ca577ca489ea3a0ffb5643a71340b5557ee3210215b0187b8d9e223",
+      "bytes": 15132
+    },
+    "run-002/summary.json": {
+      "sha256": "8901075dda057c8f2d6f3beb99a74e12d6fb7eddd4d33dfa8a30bd135d0883da",
+      "bytes": 7630
+    },
+    "run-002/steps.csv": {
+      "sha256": "96ffc524a1f7db6442e09282c6be205b16515582e9751be585b0691877db1f48",
+      "bytes": 47069
+    },
+    "run-002/correctness.json.gz": {
+      "sha256": "0e9927291c887b92cd5c3bc07494ff0f738b2a2a56fc18a12bb219abf84ae6da",
+      "bytes": 581269
+    },
+    "run-002/correctness-summary.json": {
+      "sha256": "8ec3429afc587090d59dd7cd738e954d145f3d6129d6e9f05d8b623b8e6ab0b2",
+      "bytes": 2192
+    },
+    "source-snapshots/benchmark_training_optimizations.run-002.d0b0723fcf722882f0829e13b09230c96246ee92587291f473738f22f0d5146f.py.txt": {
+      "sha256": "d0b0723fcf722882f0829e13b09230c96246ee92587291f473738f22f0d5146f",
+      "bytes": 44310
+    },
+    "run-003/metadata.json": {
+      "sha256": "c9496cc951e961b615153ed2b8a938b3e119e3223366e93802b36b1896b5d15e",
+      "bytes": 19169
+    },
+    "run-003/summary.json": {
+      "sha256": "4f91318be554e19ade430b9cefc9a76f5526c2fddbfbd7395af102e1edfc5bbe",
+      "bytes": 9436
+    },
+    "run-003/steps.csv": {
+      "sha256": "6d21e484a4a85c4b6172f3adc14b245991f92cf8ea160270ed79c8cd00a7e89c",
+      "bytes": 63174
+    },
+    "run-003/correctness.json.gz": {
+      "sha256": "46f00e77b600b0a70cf6430bf29fc79c421a848ee286a8c1549367a472da219e",
+      "bytes": 581107
+    },
+    "run-003/correctness-summary.json": {
+      "sha256": "4ce4ab18d534d3a118de029e9e0988daca3907c6631017830407a66df0450201",
+      "bytes": 2192
+    },
+    "source-snapshots/benchmark_training_optimizations.run-003.e84ececd6abc51fcbaa1c4c19e1bcd7a2922def7596b8b9ea8c262e2edfb26d2.py.txt": {
+      "sha256": "e84ececd6abc51fcbaa1c4c19e1bcd7a2922def7596b8b9ea8c262e2edfb26d2",
+      "bytes": 45441
+    }
+  }
+}

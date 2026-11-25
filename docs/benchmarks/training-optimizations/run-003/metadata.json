@@ -1,0 +1,551 @@
+{
+  "schema_version": 1,
+  "experiment": "Controlled synthetic reconstruction; not an exact historical reproduction",
+  "created_at_utc": "2026-11-25T10:28:08.600925+00:00",
+  "config": {
+    "vocab_size": 8192,
+    "d_model": 128,
+    "n_layers": 4,
+    "n_heads": 4,
+    "d_ff": 512,
+    "batch_size": 16,
+    "context_length": 128,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "max_grad_norm": 1.0,
+    "warmup_steps": 10,
+    "measured_steps": 140,
+    "repetitions": 4,
+    "model_seed": 42,
+    "batch_seed": 43
+  },
+  "precision": "fp32",
+  "device": "mps",
+  "python": "3.12.15 (main, Sep 30 2026, 22:04:19) [Clang 21.0.0 (clang-2100.3.34.2)]",
+  "pytorch": "2.14.0",
+  "numpy": "2.5.3",
+  "pytorch_git": "08187d9e0fba026dc8217405802ab5381dc88d90",
+  "macos": "26.5.2",
+  "architecture": "arm64",
+  "hardware": {
+    "hardware": [
+      {
+        "machine_model": "Mac17,8",
+        "chip_type": "Apple M5 Pro",
+        "number_processors": "proc 18:6:0:12",
+        "physical_memory": "48 GB"
+      }
+    ],
+    "graphics": [
+      {
+        "sppci_model": "Apple M5 Pro",
+        "sppci_cores": "20",
+        "spdisplays_metal": null
+      }
+    ]
+  },
+  "git_revision": "9d35357ad7f6d98027470ee4a27419c99149c5f5",
+  "git_dirty": true,
+  "script_sha256": "e84ececd6abc51fcbaa1c4c19e1bcd7a2922def7596b8b9ea8c262e2edfb26d2",
+  "config_sha256": "e1764a45abb7d2b66033db1d70882fa7d93b0b2ceca04a50379b61de0365a4d7",
+  "torch_threads": 6,
+  "torch_interop_threads": 18,
+  "deterministic_algorithms": false,
+  "backend_environment": {
+    "PYTORCH_ENABLE_MPS_FALLBACK": "0",
+    "PYTORCH_MPS_FAST_MATH": "0",
+    "PYTORCH_MPS_PREFER_METAL": null,
+    "PYTORCH_MPS_HIGH_WATERMARK_RATIO": null,
+    "PYTORCH_MPS_LOW_WATERMARK_RATIO": null
+  },
+  "variants": {
+    "A": {
+      "name": "A",
+      "fused": false,
+      "defer_norm": false,
+      "defer_loss": false
+    },
+    "B": {
+      "name": "B",
+      "fused": false,
+      "defer_norm": true,
+      "defer_loss": false
+    },
+    "C": {
+      "name": "C",
+      "fused": true,
+      "defer_norm": true,
+      "defer_loss": false
+    },
+    "D": {
+      "name": "D",
+      "fused": true,
+      "defer_norm": true,
+      "defer_loss": true
+    }
+  },
+  "optimizer": {
+    "betas": [
+      0.9,
+      0.999
+    ],
+    "eps": 1e-08,
+    "foreach": false,
+    "amsgrad": false,
+    "maximize": false,
+    "capturable": false,
+    "differentiable": false,
+    "initial_state": "fresh/empty for every run"
+  },
+  "execution_order": [
+    [
+      "A",
+      0
+    ],
+    [
+      "B",
+      0
+    ],
+    [
+      "C",
+      0
+    ],
+    [
+      "D",
+      0
+    ],
+    [
+      "B",
+      1
+    ],
+    [
+      "C",
+      1
+    ],
+    [
+      "D",
+      1
+    ],
+    [
+      "A",
+      1
+    ],
+    [
+      "C",
+      2
+    ],
+    [
+      "D",
+      2
+    ],
+    [
+      "A",
+      2
+    ],
+    [
+      "B",
+      2
+    ],
+    [
+      "D",
+      3
+    ],
+    [
+      "A",
+      3
+    ],
+    [
+      "B",
+      3
+    ],
+    [
+      "C",
+      3
+    ]
+  ],
+  "order_policy": "Fully position-balanced: ABCD, BCDA, CDAB, DABC; every variant once per position",
+  "expected_workers": 16,
+  "expected_raw_steps": 2400,
+  "expected_measured_steps": 2240,
+  "timing": "perf_counter_ns; MPS sync before/after WHOLE step; includes CPU-batch transfer, zero_grad, forward/loss, selected scalar reads, backward, clipping and update; no per-component synchronization",
+  "warmup_policy": {
+    "excluded_updates_per_run": 10,
+    "measured_updates_per_run": 140,
+    "retain_warmup_samples": true
+  },
+  "worker_processes": "Fresh Python process for each variant/repetition",
+  "historical_limitations": "Synthetic data, current code/hardware, whole-step rather than historical per-component synchronization",
+  "execution_mode": "benchmark",
+  "initial_state_sha256": "01411e013b5fa56afafbeff12c1fad5c04eeaefdf067f2cfd9afc7c8025e0bff",
+  "batches_sha256": "dae19d435ad305bd40ffc1c924bf3d4b372aeb8e3df8047b7fe2b6d5af143a5f",
+  "workers": [
+    {
+      "variant": "A",
+      "repetition": 0,
+      "initial_state_sha256": "01411e013b5fa56afafbeff12c1fad5c04eeaefdf067f2cfd9afc7c8025e0bff",
+      "batches_sha256": "dae19d435ad305bd40ffc1c924bf3d4b372aeb8e3df8047b7fe2b6d5af143a5f",
+      "optimizer_initial_state_entries": 0,
+      "final_loss": 9.105005264282227,
+      "final_norm": 0.2636992931365967,
+      "memory_before": {
+        "current_allocated_memory": 11553792,
+        "driver_allocated_memory": 42680320,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      },
+      "memory_after": {
+        "current_allocated_memory": 46215168,
+        "driver_allocated_memory": 1277984768,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      }
+    },
+    {
+      "variant": "B",
+      "repetition": 0,
+      "initial_state_sha256": "01411e013b5fa56afafbeff12c1fad5c04eeaefdf067f2cfd9afc7c8025e0bff",
+      "batches_sha256": "dae19d435ad305bd40ffc1c924bf3d4b372aeb8e3df8047b7fe2b6d5af143a5f",
+      "optimizer_initial_state_entries": 0,
+      "final_loss": 9.105005264282227,
+      "final_norm": 0.26369932293891907,
+      "memory_before": {
+        "current_allocated_memory": 11553792,
+        "driver_allocated_memory": 42680320,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      },
+      "memory_after": {
+        "current_allocated_memory": 46215424,
+        "driver_allocated_memory": 1277984768,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      }
+    },
+    {
+      "variant": "C",
+      "repetition": 0,
+      "initial_state_sha256": "01411e013b5fa56afafbeff12c1fad5c04eeaefdf067f2cfd9afc7c8025e0bff",
+      "batches_sha256": "dae19d435ad305bd40ffc1c924bf3d4b372aeb8e3df8047b7fe2b6d5af143a5f",
+      "optimizer_initial_state_entries": 0,
+      "final_loss": 9.10500431060791,
+      "final_norm": 0.2636988162994385,
+      "memory_before": {
+        "current_allocated_memory": 11553792,
+        "driver_allocated_memory": 42680320,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      },
+      "memory_after": {
+        "current_allocated_memory": 46228736,
+        "driver_allocated_memory": 1269596160,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      }
+    },
+    {
+      "variant": "D",
+      "repetition": 0,
+      "initial_state_sha256": "01411e013b5fa56afafbeff12c1fad5c04eeaefdf067f2cfd9afc7c8025e0bff",
+      "batches_sha256": "dae19d435ad305bd40ffc1c924bf3d4b372aeb8e3df8047b7fe2b6d5af143a5f",
+      "optimizer_initial_state_entries": 0,
+      "final_loss": 9.105003356933594,
+      "final_norm": 0.2636988162994385,
+      "memory_before": {
+        "current_allocated_memory": 11553792,
+        "driver_allocated_memory": 42680320,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      },
+      "memory_after": {
+        "current_allocated_memory": 46228992,
+        "driver_allocated_memory": 1269596160,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      }
+    },
+    {
+      "variant": "B",
+      "repetition": 1,
+      "initial_state_sha256": "01411e013b5fa56afafbeff12c1fad5c04eeaefdf067f2cfd9afc7c8025e0bff",
+      "batches_sha256": "dae19d435ad305bd40ffc1c924bf3d4b372aeb8e3df8047b7fe2b6d5af143a5f",
+      "optimizer_initial_state_entries": 0,
+      "final_loss": 9.105005264282227,
+      "final_norm": 0.2636992931365967,
+      "memory_before": {
+        "current_allocated_memory": 11553792,
+        "driver_allocated_memory": 42680320,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      },
+      "memory_after": {
+        "current_allocated_memory": 46215424,
+        "driver_allocated_memory": 1277984768,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      }
+    },
+    {
+      "variant": "C",
+      "repetition": 1,
+      "initial_state_sha256": "01411e013b5fa56afafbeff12c1fad5c04eeaefdf067f2cfd9afc7c8025e0bff",
+      "batches_sha256": "dae19d435ad305bd40ffc1c924bf3d4b372aeb8e3df8047b7fe2b6d5af143a5f",
+      "optimizer_initial_state_entries": 0,
+      "final_loss": 9.10500431060791,
+      "final_norm": 0.2636988162994385,
+      "memory_before": {
+        "current_allocated_memory": 11553792,
+        "driver_allocated_memory": 42680320,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      },
+      "memory_after": {
+        "current_allocated_memory": 46228736,
+        "driver_allocated_memory": 1269596160,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      }
+    },
+    {
+      "variant": "D",
+      "repetition": 1,
+      "initial_state_sha256": "01411e013b5fa56afafbeff12c1fad5c04eeaefdf067f2cfd9afc7c8025e0bff",
+      "batches_sha256": "dae19d435ad305bd40ffc1c924bf3d4b372aeb8e3df8047b7fe2b6d5af143a5f",
+      "optimizer_initial_state_entries": 0,
+      "final_loss": 9.105003356933594,
+      "final_norm": 0.2636988162994385,
+      "memory_before": {
+        "current_allocated_memory": 11553792,
+        "driver_allocated_memory": 42680320,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      },
+      "memory_after": {
+        "current_allocated_memory": 46228992,
+        "driver_allocated_memory": 1269596160,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      }
+    },
+    {
+      "variant": "A",
+      "repetition": 1,
+      "initial_state_sha256": "01411e013b5fa56afafbeff12c1fad5c04eeaefdf067f2cfd9afc7c8025e0bff",
+      "batches_sha256": "dae19d435ad305bd40ffc1c924bf3d4b372aeb8e3df8047b7fe2b6d5af143a5f",
+      "optimizer_initial_state_entries": 0,
+      "final_loss": 9.10500431060791,
+      "final_norm": 0.2636992931365967,
+      "memory_before": {
+        "current_allocated_memory": 11553792,
+        "driver_allocated_memory": 42680320,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      },
+      "memory_after": {
+        "current_allocated_memory": 46215168,
+        "driver_allocated_memory": 1277984768,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      }
+    },
+    {
+      "variant": "C",
+      "repetition": 2,
+      "initial_state_sha256": "01411e013b5fa56afafbeff12c1fad5c04eeaefdf067f2cfd9afc7c8025e0bff",
+      "batches_sha256": "dae19d435ad305bd40ffc1c924bf3d4b372aeb8e3df8047b7fe2b6d5af143a5f",
+      "optimizer_initial_state_entries": 0,
+      "final_loss": 9.105003356933594,
+      "final_norm": 0.2636988162994385,
+      "memory_before": {
+        "current_allocated_memory": 11553792,
+        "driver_allocated_memory": 42680320,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      },
+      "memory_after": {
+        "current_allocated_memory": 46228736,
+        "driver_allocated_memory": 1269596160,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      }
+    },
+    {
+      "variant": "D",
+      "repetition": 2,
+      "initial_state_sha256": "01411e013b5fa56afafbeff12c1fad5c04eeaefdf067f2cfd9afc7c8025e0bff",
+      "batches_sha256": "dae19d435ad305bd40ffc1c924bf3d4b372aeb8e3df8047b7fe2b6d5af143a5f",
+      "optimizer_initial_state_entries": 0,
+      "final_loss": 9.10500431060791,
+      "final_norm": 0.2636988162994385,
+      "memory_before": {
+        "current_allocated_memory": 11553792,
+        "driver_allocated_memory": 42680320,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      },
+      "memory_after": {
+        "current_allocated_memory": 46228992,
+        "driver_allocated_memory": 1269596160,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      }
+    },
+    {
+      "variant": "A",
+      "repetition": 2,
+      "initial_state_sha256": "01411e013b5fa56afafbeff12c1fad5c04eeaefdf067f2cfd9afc7c8025e0bff",
+      "batches_sha256": "dae19d435ad305bd40ffc1c924bf3d4b372aeb8e3df8047b7fe2b6d5af143a5f",
+      "optimizer_initial_state_entries": 0,
+      "final_loss": 9.10500431060791,
+      "final_norm": 0.2636992931365967,
+      "memory_before": {
+        "current_allocated_memory": 11553792,
+        "driver_allocated_memory": 42680320,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      },
+      "memory_after": {
+        "current_allocated_memory": 46215168,
+        "driver_allocated_memory": 1277984768,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      }
+    },
+    {
+      "variant": "B",
+      "repetition": 2,
+      "initial_state_sha256": "01411e013b5fa56afafbeff12c1fad5c04eeaefdf067f2cfd9afc7c8025e0bff",
+      "batches_sha256": "dae19d435ad305bd40ffc1c924bf3d4b372aeb8e3df8047b7fe2b6d5af143a5f",
+      "optimizer_initial_state_entries": 0,
+      "final_loss": 9.105005264282227,
+      "final_norm": 0.2636992931365967,
+      "memory_before": {
+        "current_allocated_memory": 11553792,
+        "driver_allocated_memory": 42680320,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      },
+      "memory_after": {
+        "current_allocated_memory": 46215424,
+        "driver_allocated_memory": 1277984768,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      }
+    },
+    {
+      "variant": "D",
+      "repetition": 3,
+      "initial_state_sha256": "01411e013b5fa56afafbeff12c1fad5c04eeaefdf067f2cfd9afc7c8025e0bff",
+      "batches_sha256": "dae19d435ad305bd40ffc1c924bf3d4b372aeb8e3df8047b7fe2b6d5af143a5f",
+      "optimizer_initial_state_entries": 0,
+      "final_loss": 9.10500431060791,
+      "final_norm": 0.2636988162994385,
+      "memory_before": {
+        "current_allocated_memory": 11553792,
+        "driver_allocated_memory": 42680320,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      },
+      "memory_after": {
+        "current_allocated_memory": 46228992,
+        "driver_allocated_memory": 1269596160,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      }
+    },
+    {
+      "variant": "A",
+      "repetition": 3,
+      "initial_state_sha256": "01411e013b5fa56afafbeff12c1fad5c04eeaefdf067f2cfd9afc7c8025e0bff",
+      "batches_sha256": "dae19d435ad305bd40ffc1c924bf3d4b372aeb8e3df8047b7fe2b6d5af143a5f",
+      "optimizer_initial_state_entries": 0,
+      "final_loss": 9.105005264282227,
+      "final_norm": 0.2636992931365967,
+      "memory_before": {
+        "current_allocated_memory": 11553792,
+        "driver_allocated_memory": 42680320,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      },
+      "memory_after": {
+        "current_allocated_memory": 46215168,
+        "driver_allocated_memory": 1277984768,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      }
+    },
+    {
+      "variant": "B",
+      "repetition": 3,
+      "initial_state_sha256": "01411e013b5fa56afafbeff12c1fad5c04eeaefdf067f2cfd9afc7c8025e0bff",
+      "batches_sha256": "dae19d435ad305bd40ffc1c924bf3d4b372aeb8e3df8047b7fe2b6d5af143a5f",
+      "optimizer_initial_state_entries": 0,
+      "final_loss": 9.105005264282227,
+      "final_norm": 0.2636992931365967,
+      "memory_before": {
+        "current_allocated_memory": 11553792,
+        "driver_allocated_memory": 42680320,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      },
+      "memory_after": {
+        "current_allocated_memory": 46215424,
+        "driver_allocated_memory": 1277984768,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      }
+    },
+    {
+      "variant": "C",
+      "repetition": 3,
+      "initial_state_sha256": "01411e013b5fa56afafbeff12c1fad5c04eeaefdf067f2cfd9afc7c8025e0bff",
+      "batches_sha256": "dae19d435ad305bd40ffc1c924bf3d4b372aeb8e3df8047b7fe2b6d5af143a5f",
+      "optimizer_initial_state_entries": 0,
+      "final_loss": 9.105003356933594,
+      "final_norm": 0.2636988162994385,
+      "memory_before": {
+        "current_allocated_memory": 11553792,
+        "driver_allocated_memory": 42680320,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      },
+      "memory_after": {
+        "current_allocated_memory": 46228736,
+        "driver_allocated_memory": 1269596160,
+        "recommended_max_memory": 40200896512,
+        "peak_allocated_bytes": null,
+        "peak_note": "No peak API used; boundary counters are not peak memory"
+      }
+    }
+  ]
+}

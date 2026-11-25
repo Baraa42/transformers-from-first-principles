@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "experiment": "Controlled synthetic reconstruction; not an exact historical reproduction",
+  "passed": true,
+  "failures": [],
+  "arithmetic_policy": {
+    "version": 2,
+    "unit_roundoff": 5.960464477539063e-08,
+    "subnormal_quantum": 1.401298464324817e-45,
+    "moment_operations": 8,
+    "denominator_operations": 4,
+    "learning_rate_operations": 2,
+    "parameter_operations": 4,
+    "bias_operations": "2 * step + 4",
+    "assumptions": "Finite FP32, nonnegative v, small integer steps, no MPS fast-math; conservative operation-count envelope, not a certified backend error bound"
+  },
+  "tolerances": {
+    "loss": {
+      "atol": 1e-06,
+      "rtol": 1e-05
+    },
+    "gradients": {
+      "atol": 2e-06,
+      "rtol": 1e-05
+    },
+    "norm": {
+      "atol": 2e-06,
+      "rtol": 1e-05
+    },
+    "clipped_gradients": {
+      "atol": 2e-06,
+      "rtol": 1e-05
+    },
+    "parameters": {
+      "atol": 2e-06,
+      "rtol": 1e-05
+    },
+    "updates": {
+      "atol": 2e-07,
+      "rtol": 0.0001
+    },
+    "optimizer_moments": {
+      "atol": 2e-06,
+      "rtol": 1e-05
+    }
+  },
+  "comparison_policy": "Strict common-start loss/gradient/clipping/moment checks; A/B retain all original checks. Fused updates use FP64 arithmetic budgets.",
+  "trajectory_policy": "Independent trajectories: descriptive drift, not arithmetic equivalence",
+  "trajectory_comparison_policy_version": 3,
+  "ab_trajectory_reproducibility_passed": true,
+  "max_absolute_errors": {
+    "loss": 0.0,
+    "gradients": 9.313225746154785e-10,
+    "norm": 0.0,
+    "clipped_gradients": 2.9103830456733704e-11,
+    "parameters": 4.76837158203125e-07,
+    "updates": 4.76837158203125e-07,
+    "optimizer_moments": 4.656612873077393e-10
+  },
+  "source_correctness_sha256": "2c3a226f75db90df6afc93468a3cfbc80530503240b132ed0eb29d18dad70cac",
+  "common_start_check_count": 36,
+  "trajectory_record_count": 120,
+  "ab_replay_count": 0,
+  "maximum_actual_parameter_error_budget_ratio": 0.5661269508300004,
+  "maximum_replay_parameter_error_budget_ratio": 0.5661269508300004,
+  "export_note": "Navigation summary; complete original report is available losslessly in correctness.json.gz."
+}

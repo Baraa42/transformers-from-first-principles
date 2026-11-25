@@ -29,7 +29,7 @@ A minimal, research-friendly project for building a decoder-only Transformer man
 - Operator-level profiling
 - Fused AdamW on Apple MPS
 - Deferred device-to-host scalar reads
-- Approximately 19% reduction in synchronized median step time
+- Approximately 11% lower whole-step latency in a controlled synthetic MPS benchmark
 
 ### Stage 6 — Inference systems
 
@@ -165,9 +165,12 @@ For the measured tiny model on Apple MPS:
 - The input pipeline was not the current bottleneck.
 - Longer contexts improved utilization through 256 tokens, while equal-token comparisons
   began to expose the quadratic attention penalty.
-- Fused MPS AdamW substantially reduced optimizer overhead.
-- Deferring unnecessary `.item()` synchronization improved end-to-end training further.
-- Original-to-final synchronized median step time improved by approximately 19%.
+- The controlled FP32 synthetic benchmark measured approximately 11% lower whole-step
+  latency from A to D across two sessions (10.896% and 11.865%).
+- Deferring gradient-norm scalar extraction gave a consistent experiment-level improvement;
+  the fused AdamW increment was less stable and the deferred-loss increment was inconclusive.
+- The historical 19.1% figure was not directly reproduced. See the
+  [training optimization report](docs/training_optimizations.md) for raw evidence and limitations.
 
 Stage 5 training performance work is complete. Operator profiling on MPS was useful for
 identifying synchronization boundaries, but its CPU attribution is not direct device-kernel
