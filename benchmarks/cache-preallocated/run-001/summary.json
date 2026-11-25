@@ -1,0 +1,2345 @@
+{
+  "workloads": [
+    {
+      "P": 32,
+      "N": 128,
+      "B": 1,
+      "modes": {
+        "cat": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 5.1862085,
+            "p95_ms": 5.52163525,
+            "min_ms": 4.649333,
+            "max_ms": 5.560875,
+            "sample_stddev_ms": 0.33128374093376
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 356.480104,
+            "p95_ms": 511.7058435,
+            "min_ms": 340.049333,
+            "max_ms": 539.222208,
+            "sample_stddev_ms": 79.00442274622351
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 361.5067285,
+            "p95_ms": 516.867312,
+            "min_ms": 345.39295799999996,
+            "max_ms": 544.250541,
+            "sample_stddev_ms": 78.98315996114516
+          },
+          "median_decode_ms_per_token": 2.8069299527559055,
+          "aggregate_decode_tokens_per_second": 322.48991575937885,
+          "aggregate_end_to_end_tokens_per_second": 320.81815902429463
+        },
+        "preallocated": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 6.018708,
+            "p95_ms": 8.37728125,
+            "min_ms": 4.885167,
+            "max_ms": 8.82125,
+            "sample_stddev_ms": 1.410761845221746
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 388.0473545,
+            "p95_ms": 498.04954175,
+            "min_ms": 332.821667,
+            "max_ms": 507.292417,
+            "sample_stddev_ms": 70.92011715174799
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 393.7670005,
+            "p95_ms": 505.88677099999995,
+            "min_ms": 338.77608299999997,
+            "max_ms": 516.113667,
+            "sample_stddev_ms": 71.41687850209966
+          },
+          "median_decode_ms_per_token": 3.0554909803149606,
+          "aggregate_decode_tokens_per_second": 314.05474304876753,
+          "aggregate_end_to_end_tokens_per_second": 311.62835307786503
+        }
+      },
+      "paired_speedup": {
+        "prefill_ms": {
+          "samples": [
+            1.0088912254970417,
+            0.8445483150656589,
+            0.9141665296728588,
+            0.6057673232251666,
+            0.7137069354008836,
+            0.9517244753352343
+          ],
+          "median": 0.8793574223692588,
+          "min": 0.6057673232251666,
+          "max": 1.0088912254970417,
+          "sample_stddev": 0.1531943946006183
+        },
+        "decode_total_ms": {
+          "samples": [
+            0.9149694663639151,
+            1.0260031628289394,
+            1.0677944910483579,
+            0.670322129021692,
+            1.586886383894002,
+            0.7879559560136594
+          ],
+          "median": 0.9704863145964273,
+          "min": 0.670322129021692,
+          "max": 1.586886383894002,
+          "sample_stddev": 0.3194067884569842
+        },
+        "total_latency_ms": {
+          "samples": [
+            0.9162949402995589,
+            1.0228138655230867,
+            1.06550396146988,
+            0.6692187788935262,
+            1.5691496716465676,
+            0.7896395130952059
+          ],
+          "median": 0.9695544029113228,
+          "min": 0.6692187788935262,
+          "max": 1.5691496716465676,
+          "sample_stddev": 0.3128064979684206
+        }
+      },
+      "final_logical_bytes": 651264,
+      "final_reserved_bytes": 651264,
+      "theoretical_old_prefix_bytes_eliminated": 49418240,
+      "accounting": {
+        "decode_forwards": 127,
+        "kv_cat_calls": 1016,
+        "prefill_logical_cache_bytes": 131072,
+        "final_logical_cache_bytes": 651264,
+        "theoretical_old_prefix_recopied_bytes": 49418240,
+        "theoretical_cat_output_bytes": 49938432,
+        "theoretical_cat_read_plus_write_bytes": 99876864,
+        "theoretical_new_kv_payload_bytes": 520192
+      },
+      "operation_counts": {
+        "preallocated_kv_storage_allocations_per_request": 8,
+        "preallocated_prefill_slice_writes": 8,
+        "preallocated_decode_slice_writes": 1016,
+        "preallocated_decode_kv_storage_allocations": 0,
+        "cat_decode_kv_allocations": 1016,
+        "note": "Algorithmic counts, not profiled allocator/kernel events. Projection, attention, RoPE and output-ID allocations remain."
+      }
+    },
+    {
+      "P": 256,
+      "N": 64,
+      "B": 4,
+      "modes": {
+        "cat": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 9.152771,
+            "p95_ms": 18.484427,
+            "min_ms": 5.052791,
+            "max_ms": 21.063583,
+            "sample_stddev_ms": 5.845836271674111
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 189.600917,
+            "p95_ms": 219.419125,
+            "min_ms": 165.341083,
+            "max_ms": 225.02675,
+            "sample_stddev_ms": 22.613446278186387
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 204.0295835,
+            "p95_ms": 229.98970875,
+            "min_ms": 170.393874,
+            "max_ms": 235.538542,
+            "sample_stddev_ms": 23.826709198026997
+          },
+          "median_decode_ms_per_token": 3.009538365079365,
+          "aggregate_decode_tokens_per_second": 1319.8438748300503,
+          "aggregate_end_to_end_tokens_per_second": 1273.1402059875209
+        },
+        "preallocated": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 10.883062500000001,
+            "p95_ms": 11.35564575,
+            "min_ms": 8.008208,
+            "max_ms": 11.439,
+            "sample_stddev_ms": 1.247565226641878
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 191.202875,
+            "p95_ms": 256.34494774999996,
+            "min_ms": 172.712458,
+            "max_ms": 272.39725,
+            "sample_stddev_ms": 37.20560023278019
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 201.962458,
+            "p95_ms": 267.6111665,
+            "min_ms": 183.351875,
+            "max_ms": 283.83625,
+            "sample_stddev_ms": 37.838213596813745
+          },
+          "median_decode_ms_per_token": 3.03496626984127,
+          "aggregate_decode_tokens_per_second": 1248.506286500818,
+          "aggregate_end_to_end_tokens_per_second": 1205.7773711161014
+        }
+      },
+      "paired_speedup": {
+        "prefill_ms": {
+          "samples": [
+            0.742197156895646,
+            0.9465322081695307,
+            0.5309692381052068,
+            1.8413832502841159,
+            0.6309515187417709,
+            0.9753780319016178
+          ],
+          "median": 0.8443646825325883,
+          "min": 0.5309692381052068,
+          "max": 1.8413832502841159,
+          "sample_stddev": 0.4723566238799257
+        },
+        "decode_total_ms": {
+          "samples": [
+            1.10063511137549,
+            1.3028981962609785,
+            0.8330167485460896,
+            0.6515836118022484,
+            0.9429544039363565,
+            1.0173722694096627
+          ],
+          "median": 0.9801633366730096,
+          "min": 0.6515836118022484,
+          "max": 1.3028981962609785,
+          "sample_stddev": 0.22400033326777335
+        },
+        "total_latency_ms": {
+          "samples": [
+            1.0812103846442096,
+            1.2813679262309188,
+            0.8181888073585881,
+            0.6995342103061184,
+            0.9293271421413062,
+            1.0151705472762342
+          ],
+          "median": 0.9722488447087703,
+          "min": 0.6995342103061184,
+          "max": 1.2813679262309188,
+          "sample_stddev": 0.20455167465593346
+        }
+      },
+      "final_logical_bytes": 5226496,
+      "final_reserved_bytes": 5226496,
+      "theoretical_old_prefix_bytes_eliminated": 296239104,
+      "accounting": {
+        "decode_forwards": 63,
+        "kv_cat_calls": 504,
+        "prefill_logical_cache_bytes": 4194304,
+        "final_logical_cache_bytes": 5226496,
+        "theoretical_old_prefix_recopied_bytes": 296239104,
+        "theoretical_cat_output_bytes": 297271296,
+        "theoretical_cat_read_plus_write_bytes": 594542592,
+        "theoretical_new_kv_payload_bytes": 1032192
+      },
+      "operation_counts": {
+        "preallocated_kv_storage_allocations_per_request": 8,
+        "preallocated_prefill_slice_writes": 8,
+        "preallocated_decode_slice_writes": 504,
+        "preallocated_decode_kv_storage_allocations": 0,
+        "cat_decode_kv_allocations": 504,
+        "note": "Algorithmic counts, not profiled allocator/kernel events. Projection, attention, RoPE and output-ID allocations remain."
+      }
+    },
+    {
+      "P": 32,
+      "N": 64,
+      "B": 4,
+      "modes": {
+        "cat": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 5.647228999999999,
+            "p95_ms": 5.80192725,
+            "min_ms": 5.448375,
+            "max_ms": 5.811375,
+            "sample_stddev_ms": 0.14317907016413614
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 193.8294165,
+            "p95_ms": 206.73631225,
+            "min_ms": 185.568834,
+            "max_ms": 209.194083,
+            "sample_stddev_ms": 8.803956523095632
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 199.518958,
+            "p95_ms": 212.35058275,
+            "min_ms": 191.29558400000002,
+            "max_ms": 214.755249,
+            "sample_stddev_ms": 8.818118015988151
+          },
+          "median_decode_ms_per_token": 3.076657404761905,
+          "aggregate_decode_tokens_per_second": 1294.0183502808072,
+          "aggregate_end_to_end_tokens_per_second": 1277.506468127113
+        },
+        "preallocated": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 5.911208500000001,
+            "p95_ms": 6.27698975,
+            "min_ms": 5.54725,
+            "max_ms": 6.280042,
+            "sample_stddev_ms": 0.2932031705318004
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 189.3895625,
+            "p95_ms": 191.6507915,
+            "min_ms": 184.516541,
+            "max_ms": 191.729208,
+            "sample_stddev_ms": 2.720721125116258
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 195.3807705,
+            "p95_ms": 197.468385,
+            "min_ms": 190.796583,
+            "max_ms": 197.636916,
+            "sample_stddev_ms": 2.5879705336104144
+          },
+          "median_decode_ms_per_token": 3.006183531746032,
+          "aggregate_decode_tokens_per_second": 1333.1327967735986,
+          "aggregate_end_to_end_tokens_per_second": 1313.041926479317
+        }
+      },
+      "paired_speedup": {
+        "prefill_ms": {
+          "samples": [
+            0.8675698347240354,
+            1.0476136824552706,
+            0.969369169904809,
+            0.9402264760616287,
+            0.8882987150423438,
+            1.0103246378607151
+          ],
+          "median": 0.9547978229832188,
+          "min": 0.8675698347240354,
+          "max": 1.0476136824552706,
+          "sample_stddev": 0.0694963028298529
+        },
+        "decode_total_ms": {
+          "samples": [
+            1.0116629110232453,
+            1.0219110943457246,
+            0.9678694025586336,
+            1.1143338732252546,
+            1.0091081111258526,
+            1.0578341813097636
+          ],
+          "median": 1.016787002684485,
+          "min": 0.9678694025586336,
+          "max": 1.1143338732252546,
+          "sample_stddev": 0.05016786327570724
+        },
+        "total_latency_ms": {
+          "samples": [
+            1.0069201082075983,
+            1.0226349807226536,
+            0.9679142331891073,
+            1.1090159189599003,
+            1.005256247669471,
+            1.0564359936260117
+          ],
+          "median": 1.014777544465126,
+          "min": 0.9679142331891073,
+          "max": 1.1090159189599003,
+          "sample_stddev": 0.04893445109852136
+        }
+      },
+      "final_logical_bytes": 1556480,
+      "final_reserved_bytes": 1556480,
+      "theoretical_old_prefix_bytes_eliminated": 65028096,
+      "accounting": {
+        "decode_forwards": 63,
+        "kv_cat_calls": 504,
+        "prefill_logical_cache_bytes": 524288,
+        "final_logical_cache_bytes": 1556480,
+        "theoretical_old_prefix_recopied_bytes": 65028096,
+        "theoretical_cat_output_bytes": 66060288,
+        "theoretical_cat_read_plus_write_bytes": 132120576,
+        "theoretical_new_kv_payload_bytes": 1032192
+      },
+      "operation_counts": {
+        "preallocated_kv_storage_allocations_per_request": 8,
+        "preallocated_prefill_slice_writes": 8,
+        "preallocated_decode_slice_writes": 504,
+        "preallocated_decode_kv_storage_allocations": 0,
+        "cat_decode_kv_allocations": 504,
+        "note": "Algorithmic counts, not profiled allocator/kernel events. Projection, attention, RoPE and output-ID allocations remain."
+      }
+    },
+    {
+      "P": 32,
+      "N": 64,
+      "B": 1,
+      "modes": {
+        "cat": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 5.071646,
+            "p95_ms": 5.611875,
+            "min_ms": 3.937958,
+            "max_ms": 5.73725,
+            "sample_stddev_ms": 0.6010188592746212
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 192.01858349999998,
+            "p95_ms": 213.4050315,
+            "min_ms": 180.451125,
+            "max_ms": 214.024917,
+            "sample_stddev_ms": 13.522212028861517
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 197.20779199999998,
+            "p95_ms": 217.7928125,
+            "min_ms": 185.45175,
+            "max_ms": 217.962875,
+            "sample_stddev_ms": 13.425495705546732
+          },
+          "median_decode_ms_per_token": 3.0479140238095237,
+          "aggregate_decode_tokens_per_second": 320.7792841525816,
+          "aggregate_end_to_end_tokens_per_second": 317.8337860852165
+        },
+        "preallocated": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 5.3092500000000005,
+            "p95_ms": 5.67643775,
+            "min_ms": 4.807375,
+            "max_ms": 5.718042,
+            "sample_stddev_ms": 0.35517988273291384
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 191.57262500000002,
+            "p95_ms": 212.09872925000002,
+            "min_ms": 183.193334,
+            "max_ms": 217.2595,
+            "sample_stddev_ms": 12.138011996735354
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 196.888625,
+            "p95_ms": 216.975198,
+            "min_ms": 188.728084,
+            "max_ms": 222.066875,
+            "sample_stddev_ms": 11.853320098337026
+          },
+          "median_decode_ms_per_token": 3.0408353174603175,
+          "aggregate_decode_tokens_per_second": 324.04401193545306,
+          "aggregate_end_to_end_tokens_per_second": 320.4582216087873
+        }
+      },
+      "paired_speedup": {
+        "prefill_ms": {
+          "samples": [
+            0.8745344997465917,
+            0.9338056737937652,
+            0.7746167691172855,
+            1.193426766166567,
+            0.9291597633136095,
+            0.9431022448382231
+          ],
+          "median": 0.9314827185536874,
+          "min": 0.7746167691172855,
+          "max": 1.193426766166567,
+          "sample_stddev": 0.1385752624760583
+        },
+        "decode_total_ms": {
+          "samples": [
+            0.9686377867362004,
+            0.9880575425682158,
+            1.0885404192875714,
+            0.973699078751447,
+            1.0637163795490505,
+            0.9824672943206078
+          ],
+          "median": 0.9852624184444118,
+          "min": 0.9686377867362004,
+          "max": 1.0885404192875714,
+          "sample_stddev": 0.05160967210583914
+        },
+        "total_latency_ms": {
+          "samples": [
+            0.9658354241342001,
+            0.9866490072766513,
+            1.0806281335404149,
+            0.9784558142676614,
+            1.0597702936463869,
+            0.9813641081137258
+          ],
+          "median": 0.9840065576951885,
+          "min": 0.9658354241342001,
+          "max": 1.0806281335404149,
+          "sample_stddev": 0.04851261497044692
+        }
+      },
+      "final_logical_bytes": 389120,
+      "final_reserved_bytes": 389120,
+      "theoretical_old_prefix_bytes_eliminated": 16257024,
+      "accounting": {
+        "decode_forwards": 63,
+        "kv_cat_calls": 504,
+        "prefill_logical_cache_bytes": 131072,
+        "final_logical_cache_bytes": 389120,
+        "theoretical_old_prefix_recopied_bytes": 16257024,
+        "theoretical_cat_output_bytes": 16515072,
+        "theoretical_cat_read_plus_write_bytes": 33030144,
+        "theoretical_new_kv_payload_bytes": 258048
+      },
+      "operation_counts": {
+        "preallocated_kv_storage_allocations_per_request": 8,
+        "preallocated_prefill_slice_writes": 8,
+        "preallocated_decode_slice_writes": 504,
+        "preallocated_decode_kv_storage_allocations": 0,
+        "cat_decode_kv_allocations": 504,
+        "note": "Algorithmic counts, not profiled allocator/kernel events. Projection, attention, RoPE and output-ID allocations remain."
+      }
+    },
+    {
+      "P": 32,
+      "N": 128,
+      "B": 4,
+      "modes": {
+        "cat": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 5.457146,
+            "p95_ms": 6.579354,
+            "min_ms": 5.333333,
+            "max_ms": 6.623208,
+            "sample_stddev_ms": 0.5866845808791693
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 380.48875,
+            "p95_ms": 436.54785400000003,
+            "min_ms": 368.320417,
+            "max_ms": 446.641875,
+            "sample_stddev_ms": 29.08928054462668
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 386.496312,
+            "p95_ms": 442.73473975,
+            "min_ms": 373.65375,
+            "max_ms": 453.089667,
+            "sample_stddev_ms": 29.370545661813384
+          },
+          "median_decode_ms_per_token": 2.995974409448819,
+          "aggregate_decode_tokens_per_second": 1291.9523570493247,
+          "aggregate_end_to_end_tokens_per_second": 1283.2451853821758
+        },
+        "preallocated": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 5.7189375,
+            "p95_ms": 8.39665675,
+            "min_ms": 5.367792,
+            "max_ms": 9.246834,
+            "sample_stddev_ms": 1.4993820751409228
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 380.75225,
+            "p95_ms": 447.82407275,
+            "min_ms": 358.168209,
+            "max_ms": 459.980833,
+            "sample_stddev_ms": 37.42761852782572
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 386.3436455,
+            "p95_ms": 456.2207295,
+            "min_ms": 363.536001,
+            "max_ms": 469.227667,
+            "sample_stddev_ms": 38.809519845012446
+          },
+          "median_decode_ms_per_token": 2.998049212598425,
+          "aggregate_decode_tokens_per_second": 1291.362680294217,
+          "aggregate_end_to_end_tokens_per_second": 1281.2917903749824
+        }
+      },
+      "paired_speedup": {
+        "prefill_ms": {
+          "samples": [
+            1.2338794051632405,
+            0.9197780460463912,
+            1.0014161567418998,
+            1.1433522331818684,
+            0.9244015480339541,
+            0.5958931456972192
+          ],
+          "median": 0.962908852387927,
+          "min": 0.5958931456972192,
+          "max": 1.2338794051632405,
+          "sample_stddev": 0.22146215983834028
+        },
+        "decode_total_ms": {
+          "samples": [
+            1.0618041759256194,
+            0.9491758647889585,
+            1.0193080682252882,
+            1.2094607853050288,
+            0.9876310827833574,
+            0.8196309801456444
+          ],
+          "median": 1.0034695755043228,
+          "min": 0.8196309801456444,
+          "max": 1.2094607853050288,
+          "sample_stddev": 0.12881545407927752
+        },
+        "total_latency_ms": {
+          "samples": [
+            1.0643449532801568,
+            0.9487430420908134,
+            1.0190537824693082,
+            1.2084664358155972,
+            0.9867450620801537,
+            0.8152218909973185
+          ],
+          "median": 1.002899422274731,
+          "min": 0.8152218909973185,
+          "max": 1.2084664358155972,
+          "sample_stddev": 0.13008104067099582
+        }
+      },
+      "final_logical_bytes": 2605056,
+      "final_reserved_bytes": 2605056,
+      "theoretical_old_prefix_bytes_eliminated": 197672960,
+      "accounting": {
+        "decode_forwards": 127,
+        "kv_cat_calls": 1016,
+        "prefill_logical_cache_bytes": 524288,
+        "final_logical_cache_bytes": 2605056,
+        "theoretical_old_prefix_recopied_bytes": 197672960,
+        "theoretical_cat_output_bytes": 199753728,
+        "theoretical_cat_read_plus_write_bytes": 399507456,
+        "theoretical_new_kv_payload_bytes": 2080768
+      },
+      "operation_counts": {
+        "preallocated_kv_storage_allocations_per_request": 8,
+        "preallocated_prefill_slice_writes": 8,
+        "preallocated_decode_slice_writes": 1016,
+        "preallocated_decode_kv_storage_allocations": 0,
+        "cat_decode_kv_allocations": 1016,
+        "note": "Algorithmic counts, not profiled allocator/kernel events. Projection, attention, RoPE and output-ID allocations remain."
+      }
+    },
+    {
+      "P": 256,
+      "N": 16,
+      "B": 4,
+      "modes": {
+        "cat": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 7.3037295,
+            "p95_ms": 10.45435475,
+            "min_ms": 5.228208,
+            "max_ms": 10.930834,
+            "sample_stddev_ms": 2.091100698832021
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 50.865312,
+            "p95_ms": 54.328958,
+            "min_ms": 46.656417,
+            "max_ms": 54.384583,
+            "sample_stddev_ms": 3.090818761768501
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 58.812625,
+            "p95_ms": 64.461521,
+            "min_ms": 51.884625,
+            "max_ms": 65.315417,
+            "sample_stddev_ms": 4.814418857697738
+          },
+          "median_decode_ms_per_token": 3.3910207999999997,
+          "aggregate_decode_tokens_per_second": 1177.6289787589392,
+          "aggregate_end_to_end_tokens_per_second": 1092.497402117994
+        },
+        "preallocated": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 6.3307085,
+            "p95_ms": 15.1377605,
+            "min_ms": 5.093166,
+            "max_ms": 16.511375,
+            "sample_stddev_ms": 4.406626840772312
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 47.552208500000006,
+            "p95_ms": 49.6892395,
+            "min_ms": 45.752417,
+            "max_ms": 49.719625,
+            "sample_stddev_ms": 1.6388648173435687
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 54.338145499999996,
+            "p95_ms": 63.21390675,
+            "min_ms": 52.085917,
+            "max_ms": 64.080209,
+            "sample_stddev_ms": 5.0055290169321625
+          },
+          "median_decode_ms_per_token": 3.1701472333333336,
+          "aggregate_decode_tokens_per_second": 1256.5998763470816,
+          "aggregate_end_to_end_tokens_per_second": 1136.4080542068536
+        }
+      },
+      "paired_speedup": {
+        "prefill_ms": {
+          "samples": [
+            2.1461766610395188,
+            0.826213112466551,
+            0.9773962273866943,
+            0.4686314737567283,
+            0.8191871646123866,
+            1.0846623509907634
+          ],
+          "median": 0.9018046699266227,
+          "min": 0.4686314737567283,
+          "max": 2.1461766610395188,
+          "sample_stddev": 0.5743410000032512
+        },
+        "decode_total_ms": {
+          "samples": [
+            1.144081539927679,
+            0.9383903639659389,
+            1.0529541995411942,
+            1.138604385383926,
+            1.0033267414791012,
+            1.13584252827561
+          ],
+          "median": 1.094398363908402,
+          "min": 0.9383903639659389,
+          "max": 1.144081539927679,
+          "sample_stddev": 0.08553262135568067
+        },
+        "total_latency_ms": {
+          "samples": [
+            1.241059653536511,
+            0.9257252530360742,
+            1.0441139670396455,
+            0.9659742682799303,
+            0.9698589458054937,
+            1.1296191636599198
+          ],
+          "median": 1.0069864564225697,
+          "min": 0.9257252530360742,
+          "max": 1.241059653536511,
+          "sample_stddev": 0.11975939391529672
+        }
+      },
+      "final_logical_bytes": 4440064,
+      "final_reserved_bytes": 4440064,
+      "theoretical_old_prefix_bytes_eliminated": 64634880,
+      "accounting": {
+        "decode_forwards": 15,
+        "kv_cat_calls": 120,
+        "prefill_logical_cache_bytes": 4194304,
+        "final_logical_cache_bytes": 4440064,
+        "theoretical_old_prefix_recopied_bytes": 64634880,
+        "theoretical_cat_output_bytes": 64880640,
+        "theoretical_cat_read_plus_write_bytes": 129761280,
+        "theoretical_new_kv_payload_bytes": 245760
+      },
+      "operation_counts": {
+        "preallocated_kv_storage_allocations_per_request": 8,
+        "preallocated_prefill_slice_writes": 8,
+        "preallocated_decode_slice_writes": 120,
+        "preallocated_decode_kv_storage_allocations": 0,
+        "cat_decode_kv_allocations": 120,
+        "note": "Algorithmic counts, not profiled allocator/kernel events. Projection, attention, RoPE and output-ID allocations remain."
+      }
+    },
+    {
+      "P": 256,
+      "N": 64,
+      "B": 1,
+      "modes": {
+        "cat": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 5.785125000000001,
+            "p95_ms": 7.00184375,
+            "min_ms": 4.567958,
+            "max_ms": 7.3585,
+            "sample_stddev_ms": 0.8981721491619337
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 185.628208,
+            "p95_ms": 193.86110474999998,
+            "min_ms": 179.333875,
+            "max_ms": 196.390459,
+            "sample_stddev_ms": 5.935823660251225
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 191.413333,
+            "p95_ms": 199.4913545,
+            "min_ms": 183.901833,
+            "max_ms": 201.920167,
+            "sample_stddev_ms": 5.932608992165877
+          },
+          "median_decode_ms_per_token": 2.9464794920634922,
+          "aggregate_decode_tokens_per_second": 339.2042234996277,
+          "aggregate_end_to_end_tokens_per_second": 334.10734636555696
+        },
+        "preallocated": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 6.009437,
+            "p95_ms": 6.56813525,
+            "min_ms": 3.924167,
+            "max_ms": 6.727083,
+            "sample_stddev_ms": 0.9530099844089078
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 186.947604,
+            "p95_ms": 215.44841674999998,
+            "min_ms": 175.738333,
+            "max_ms": 223.446542,
+            "sample_stddev_ms": 17.235116798713552
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 192.85497900000001,
+            "p95_ms": 221.99333299999998,
+            "min_ms": 179.66250000000002,
+            "max_ms": 230.173625,
+            "sample_stddev_ms": 17.871482965108086
+          },
+          "median_decode_ms_per_token": 2.9674222857142856,
+          "aggregate_decode_tokens_per_second": 330.634416200845,
+          "aggregate_end_to_end_tokens_per_second": 326.02815932550914
+        }
+      },
+      "paired_speedup": {
+        "prefill_ms": {
+          "samples": [
+            1.2222492042964175,
+            0.949620704441685,
+            0.8817900715659371,
+            1.1640580026283285,
+            0.9985401149959304,
+            0.9218613714020503
+          ],
+          "median": 0.9740804097188077,
+          "min": 0.8817900715659371,
+          "max": 1.2222492042964175,
+          "sample_stddev": 0.13838329105314912
+        },
+        "decode_total_ms": {
+          "samples": [
+            0.9841794882538626,
+            1.0378633940751771,
+            0.8336358232834054,
+            1.0204596341539214,
+            0.978417296007616,
+            1.0257838276706837
+          ],
+          "median": 1.002319561203892,
+          "min": 0.8336358232834054,
+          "max": 1.0378633940751771,
+          "sample_stddev": 0.07552978133155219
+        },
+        "total_latency_ms": {
+          "samples": [
+            0.9917210871788911,
+            1.034954997118641,
+            0.8350431853345491,
+            1.0235960926737633,
+            0.9790132181913282,
+            1.0226267632618014
+          ],
+          "median": 1.0071739252203462,
+          "min": 0.8350431853345491,
+          "max": 1.034954997118641,
+          "sample_stddev": 0.07467326816300403
+        }
+      },
+      "final_logical_bytes": 1306624,
+      "final_reserved_bytes": 1306624,
+      "theoretical_old_prefix_bytes_eliminated": 74059776,
+      "accounting": {
+        "decode_forwards": 63,
+        "kv_cat_calls": 504,
+        "prefill_logical_cache_bytes": 1048576,
+        "final_logical_cache_bytes": 1306624,
+        "theoretical_old_prefix_recopied_bytes": 74059776,
+        "theoretical_cat_output_bytes": 74317824,
+        "theoretical_cat_read_plus_write_bytes": 148635648,
+        "theoretical_new_kv_payload_bytes": 258048
+      },
+      "operation_counts": {
+        "preallocated_kv_storage_allocations_per_request": 8,
+        "preallocated_prefill_slice_writes": 8,
+        "preallocated_decode_slice_writes": 504,
+        "preallocated_decode_kv_storage_allocations": 0,
+        "cat_decode_kv_allocations": 504,
+        "note": "Algorithmic counts, not profiled allocator/kernel events. Projection, attention, RoPE and output-ID allocations remain."
+      }
+    },
+    {
+      "P": 32,
+      "N": 16,
+      "B": 1,
+      "modes": {
+        "cat": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 4.823166499999999,
+            "p95_ms": 5.033302,
+            "min_ms": 4.673375,
+            "max_ms": 5.098,
+            "sample_stddev_ms": 0.14240669530187125
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 48.9053335,
+            "p95_ms": 56.16011425000001,
+            "min_ms": 47.509958,
+            "max_ms": 56.186083,
+            "sample_stddev_ms": 4.138570903495878
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 53.8684585,
+            "p95_ms": 60.994041,
+            "min_ms": 52.183333,
+            "max_ms": 61.025291,
+            "sample_stddev_ms": 4.141990918462942
+          },
+          "median_decode_ms_per_token": 3.2603555666666666,
+          "aggregate_decode_tokens_per_second": 294.81820255015515,
+          "aggregate_end_to_end_tokens_per_second": 287.17677274535913
+        },
+        "preallocated": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 5.057062500000001,
+            "p95_ms": 5.2244167500000005,
+            "min_ms": 4.874583,
+            "max_ms": 5.226542,
+            "sample_stddev_ms": 0.15078018559843992
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 49.507416500000005,
+            "p95_ms": 54.4496045,
+            "min_ms": 45.57275,
+            "max_ms": 55.333459,
+            "sample_stddev_ms": 3.7477032874242675
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 54.487145500000004,
+            "p95_ms": 59.5281775,
+            "min_ms": 50.790791,
+            "max_ms": 60.362708999999995,
+            "sample_stddev_ms": 3.7415397497580267
+          },
+          "median_decode_ms_per_token": 3.3004944333333333,
+          "aggregate_decode_tokens_per_second": 302.2041602929011,
+          "aggregate_end_to_end_tokens_per_second": 292.5520748864318
+        }
+      },
+      "paired_speedup": {
+        "prefill_ms": {
+          "samples": [
+            0.9587230333343385,
+            0.9600338022567977,
+            0.9516867179625851,
+            0.9829813322452309,
+            0.9754059184830045,
+            0.9120441943633635
+          ],
+          "median": 0.9593784177955681,
+          "min": 0.9120441943633635,
+          "max": 0.9829813322452309,
+          "sample_stddev": 0.02479929333220938
+        },
+        "decode_total_ms": {
+          "samples": [
+            0.9330214696658465,
+            0.8969294328771314,
+            1.1682484690698847,
+            1.2167229556057013,
+            0.9301598684012008,
+            1.0463261049640409
+          ],
+          "median": 0.9896737873149437,
+          "min": 0.8969294328771314,
+          "max": 1.2167229556057013,
+          "sample_stddev": 0.13513224230932486
+        },
+        "total_latency_ms": {
+          "samples": [
+            0.9352669061188931,
+            0.9021871102570961,
+            1.1475413106790484,
+            1.19425605586409,
+            0.934306858499956,
+            1.0325305231021111
+          ],
+          "median": 0.983898714610502,
+          "min": 0.9021871102570961,
+          "max": 1.19425605586409,
+          "sample_stddev": 0.12253850363070531
+        }
+      },
+      "final_logical_bytes": 192512,
+      "final_reserved_bytes": 192512,
+      "theoretical_old_prefix_bytes_eliminated": 2396160,
+      "accounting": {
+        "decode_forwards": 15,
+        "kv_cat_calls": 120,
+        "prefill_logical_cache_bytes": 131072,
+        "final_logical_cache_bytes": 192512,
+        "theoretical_old_prefix_recopied_bytes": 2396160,
+        "theoretical_cat_output_bytes": 2457600,
+        "theoretical_cat_read_plus_write_bytes": 4915200,
+        "theoretical_new_kv_payload_bytes": 61440
+      },
+      "operation_counts": {
+        "preallocated_kv_storage_allocations_per_request": 8,
+        "preallocated_prefill_slice_writes": 8,
+        "preallocated_decode_slice_writes": 120,
+        "preallocated_decode_kv_storage_allocations": 0,
+        "cat_decode_kv_allocations": 120,
+        "note": "Algorithmic counts, not profiled allocator/kernel events. Projection, attention, RoPE and output-ID allocations remain."
+      }
+    },
+    {
+      "P": 128,
+      "N": 64,
+      "B": 4,
+      "modes": {
+        "cat": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 8.858562000000001,
+            "p95_ms": 11.580792,
+            "min_ms": 4.777291,
+            "max_ms": 12.005209,
+            "sample_stddev_ms": 2.5701824675913123
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 223.44012500000002,
+            "p95_ms": 287.821594,
+            "min_ms": 185.385333,
+            "max_ms": 300.953292,
+            "sample_stddev_ms": 44.30671955372331
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 231.831375,
+            "p95_ms": 298.03232249999996,
+            "min_ms": 193.182166,
+            "max_ms": 311.260833,
+            "sample_stddev_ms": 44.7565136224797
+          },
+          "median_decode_ms_per_token": 3.546668650793651,
+          "aggregate_decode_tokens_per_second": 1101.455333408883,
+          "aggregate_end_to_end_tokens_per_second": 1077.982300020498
+        },
+        "preallocated": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 7.7734995,
+            "p95_ms": 9.22564625,
+            "min_ms": 5.870709,
+            "max_ms": 9.508292,
+            "sample_stddev_ms": 1.2439495882871892
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 205.832437,
+            "p95_ms": 247.51372975,
+            "min_ms": 185.119458,
+            "max_ms": 248.194084,
+            "sample_stddev_ms": 26.590651984670963
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 213.511708,
+            "p95_ms": 256.11262600000003,
+            "min_ms": 193.152499,
+            "max_ms": 257.702376,
+            "sample_stddev_ms": 26.547594965752424
+          },
+          "median_decode_ms_per_token": 3.2671815396825394,
+          "aggregate_decode_tokens_per_second": 1175.8081751268853,
+          "aggregate_end_to_end_tokens_per_second": 1152.97260474113
+        }
+      },
+      "paired_speedup": {
+        "prefill_ms": {
+          "samples": [
+            0.6357888878271611,
+            0.914696190396638,
+            1.432994270868086,
+            1.0433304951089006,
+            1.4765488588539506,
+            1.328090525352219
+          ],
+          "median": 1.1857105102305598,
+          "min": 0.6357888878271611,
+          "max": 1.4765488588539506,
+          "sample_stddev": 0.3313041751538309
+        },
+        "decode_total_ms": {
+          "samples": [
+            1.2491169443499188,
+            1.0322195141690615,
+            1.012983254341594,
+            1.0009364284444426,
+            1.4226017285364965,
+            0.7552178222759115
+          ],
+          "median": 1.0226013842553279,
+          "min": 0.7552178222759115,
+          "max": 1.4226017285364965,
+          "sample_stddev": 0.22999009743684448
+        },
+        "total_latency_ms": {
+          "samples": [
+            1.2264134058768594,
+            1.027331823441746,
+            1.0298603658426912,
+            1.0025006172236455,
+            1.4243250259094582,
+            0.768598596368022
+          ],
+          "median": 1.0285960946422186,
+          "min": 0.768598596368022,
+          "max": 1.4243250259094582,
+          "sample_stddev": 0.22282789783506143
+        }
+      },
+      "final_logical_bytes": 3129344,
+      "final_reserved_bytes": 3129344,
+      "theoretical_old_prefix_bytes_eliminated": 164118528,
+      "accounting": {
+        "decode_forwards": 63,
+        "kv_cat_calls": 504,
+        "prefill_logical_cache_bytes": 2097152,
+        "final_logical_cache_bytes": 3129344,
+        "theoretical_old_prefix_recopied_bytes": 164118528,
+        "theoretical_cat_output_bytes": 165150720,
+        "theoretical_cat_read_plus_write_bytes": 330301440,
+        "theoretical_new_kv_payload_bytes": 1032192
+      },
+      "operation_counts": {
+        "preallocated_kv_storage_allocations_per_request": 8,
+        "preallocated_prefill_slice_writes": 8,
+        "preallocated_decode_slice_writes": 504,
+        "preallocated_decode_kv_storage_allocations": 0,
+        "cat_decode_kv_allocations": 504,
+        "note": "Algorithmic counts, not profiled allocator/kernel events. Projection, attention, RoPE and output-ID allocations remain."
+      }
+    },
+    {
+      "P": 128,
+      "N": 128,
+      "B": 4,
+      "modes": {
+        "cat": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 7.702375,
+            "p95_ms": 10.852613999999999,
+            "min_ms": 7.27925,
+            "max_ms": 10.912666,
+            "sample_stddev_ms": 1.7211571705707376
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 406.12402099999997,
+            "p95_ms": 508.20033325,
+            "min_ms": 335.17125,
+            "max_ms": 516.889625,
+            "sample_stddev_ms": 68.4900100668413
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 413.47393750000003,
+            "p95_ms": 518.93284325,
+            "min_ms": 342.48525,
+            "max_ms": 527.562083,
+            "sample_stddev_ms": 70.01300401679305
+          },
+          "median_decode_ms_per_token": 3.197826937007874,
+          "aggregate_decode_tokens_per_second": 1211.8428415170083,
+          "aggregate_end_to_end_tokens_per_second": 1196.8392461965298
+        },
+        "preallocated": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 7.367395999999999,
+            "p95_ms": 8.139104750000001,
+            "min_ms": 6.96075,
+            "max_ms": 8.337834,
+            "sample_stddev_ms": 0.4822864346840996
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 372.1431455,
+            "p95_ms": 395.00740675,
+            "min_ms": 340.87125,
+            "max_ms": 398.735084,
+            "sample_stddev_ms": 20.42453638717141
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 379.59779149999997,
+            "p95_ms": 403.10288649999995,
+            "min_ms": 347.832,
+            "max_ms": 407.07291799999996,
+            "sample_stddev_ms": 20.84784838373354
+          },
+          "median_decode_ms_per_token": 2.9302609881889765,
+          "aggregate_decode_tokens_per_second": 1370.8600268932335,
+          "aggregate_end_to_end_tokens_per_second": 1354.4306428162795
+        }
+      },
+      "paired_speedup": {
+        "prefill_ms": {
+          "samples": [
+            0.969651396137595,
+            1.0232768870509241,
+            1.4810054859815887,
+            1.0073588433931209,
+            1.2800036556256695,
+            1.1470268290054952
+          ],
+          "median": 1.0851518580282096,
+          "min": 0.969651396137595,
+          "max": 1.4810054859815887,
+          "sample_stddev": 0.19768345512088825
+        },
+        "decode_total_ms": {
+          "samples": [
+            0.9057908226087431,
+            1.1395070883928313,
+            1.2561277745844046,
+            1.0872809211682615,
+            1.2963234130659043,
+            1.0817464071845309
+          ],
+          "median": 1.1133940047805464,
+          "min": 0.9057908226087431,
+          "max": 1.2963234130659043,
+          "sample_stddev": 0.14004000736483743
+        },
+        "total_latency_ms": {
+          "samples": [
+            0.9070665839541693,
+            1.1372281995740812,
+            1.2603635191724085,
+            1.085738197019383,
+            1.2959891451192047,
+            1.0830527869776214
+          ],
+          "median": 1.1114831982967321,
+          "min": 0.9070665839541693,
+          "max": 1.2959891451192047,
+          "sample_stddev": 0.14031618237438945
+        }
+      },
+      "final_logical_bytes": 4177920,
+      "final_reserved_bytes": 4177920,
+      "theoretical_old_prefix_bytes_eliminated": 397426688,
+      "accounting": {
+        "decode_forwards": 127,
+        "kv_cat_calls": 1016,
+        "prefill_logical_cache_bytes": 2097152,
+        "final_logical_cache_bytes": 4177920,
+        "theoretical_old_prefix_recopied_bytes": 397426688,
+        "theoretical_cat_output_bytes": 399507456,
+        "theoretical_cat_read_plus_write_bytes": 799014912,
+        "theoretical_new_kv_payload_bytes": 2080768
+      },
+      "operation_counts": {
+        "preallocated_kv_storage_allocations_per_request": 8,
+        "preallocated_prefill_slice_writes": 8,
+        "preallocated_decode_slice_writes": 1016,
+        "preallocated_decode_kv_storage_allocations": 0,
+        "cat_decode_kv_allocations": 1016,
+        "note": "Algorithmic counts, not profiled allocator/kernel events. Projection, attention, RoPE and output-ID allocations remain."
+      }
+    },
+    {
+      "P": 256,
+      "N": 16,
+      "B": 1,
+      "modes": {
+        "cat": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 5.9823129999999995,
+            "p95_ms": 7.0644065,
+            "min_ms": 3.937792,
+            "max_ms": 7.408167,
+            "sample_stddev_ms": 1.2038899094409614
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 43.573771,
+            "p95_ms": 62.9281455,
+            "min_ms": 41.252916,
+            "max_ms": 63.375291,
+            "sample_stddev_ms": 10.205270908236056
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 49.568438,
+            "p95_ms": 69.2865,
+            "min_ms": 45.190708,
+            "max_ms": 69.383708,
+            "sample_stddev_ms": 11.070748773587168
+          },
+          "median_decode_ms_per_token": 2.9049180666666667,
+          "aggregate_decode_tokens_per_second": 303.81208210015166,
+          "aggregate_end_to_end_tokens_per_second": 290.64281365131734
+        },
+        "preallocated": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 6.0882295,
+            "p95_ms": 6.77843775,
+            "min_ms": 3.819875,
+            "max_ms": 6.801167,
+            "sample_stddev_ms": 1.084444328638589
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 49.209146000000004,
+            "p95_ms": 74.405021,
+            "min_ms": 40.521459,
+            "max_ms": 80.624542,
+            "sample_stddev_ms": 14.332494621397851
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 55.6228335,
+            "p95_ms": 81.02072975000002,
+            "min_ms": 46.30275,
+            "max_ms": 87.42570900000001,
+            "sample_stddev_ms": 14.871762120018474
+          },
+          "median_decode_ms_per_token": 3.2806097333333337,
+          "aggregate_decode_tokens_per_second": 280.41386893595353,
+          "aggregate_end_to_end_tokens_per_second": 269.4788203822888
+        }
+      },
+      "paired_speedup": {
+        "prefill_ms": {
+          "samples": [
+            0.9736941782291518,
+            1.2226041673886932,
+            0.8834391215507573,
+            1.0308693347295395,
+            0.8169239361934904,
+            0.8990909429603964
+          ],
+          "median": 0.936392560594774,
+          "min": 0.8169239361934904,
+          "max": 1.2226041673886932,
+          "sample_stddev": 0.14385648530902329
+        },
+        "decode_total_ms": {
+          "samples": [
+            0.8360371768528695,
+            1.1047645215414403,
+            0.7860545862077578,
+            0.9038086697146271,
+            1.0580391984405102,
+            0.9415926520307938
+          ],
+          "median": 0.9227006608727104,
+          "min": 0.7860545862077578,
+          "max": 1.1047645215414403,
+          "sample_stddev": 0.12400380307104016
+        },
+        "total_latency_ms": {
+          "samples": [
+            0.8504475557086231,
+            1.1163173186098805,
+            0.7936304868857282,
+            0.91362111523026,
+            1.027933913212498,
+            0.9361923212952321
+          ],
+          "median": 0.9249067182627461,
+          "min": 0.7936304868857282,
+          "max": 1.1163173186098805,
+          "sample_stddev": 0.11745093753638892
+        }
+      },
+      "final_logical_bytes": 1110016,
+      "final_reserved_bytes": 1110016,
+      "theoretical_old_prefix_bytes_eliminated": 16158720,
+      "accounting": {
+        "decode_forwards": 15,
+        "kv_cat_calls": 120,
+        "prefill_logical_cache_bytes": 1048576,
+        "final_logical_cache_bytes": 1110016,
+        "theoretical_old_prefix_recopied_bytes": 16158720,
+        "theoretical_cat_output_bytes": 16220160,
+        "theoretical_cat_read_plus_write_bytes": 32440320,
+        "theoretical_new_kv_payload_bytes": 61440
+      },
+      "operation_counts": {
+        "preallocated_kv_storage_allocations_per_request": 8,
+        "preallocated_prefill_slice_writes": 8,
+        "preallocated_decode_slice_writes": 120,
+        "preallocated_decode_kv_storage_allocations": 0,
+        "cat_decode_kv_allocations": 120,
+        "note": "Algorithmic counts, not profiled allocator/kernel events. Projection, attention, RoPE and output-ID allocations remain."
+      }
+    },
+    {
+      "P": 128,
+      "N": 64,
+      "B": 1,
+      "modes": {
+        "cat": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 6.0039995,
+            "p95_ms": 7.3736767500000004,
+            "min_ms": 5.708041,
+            "max_ms": 7.554458,
+            "sample_stddev_ms": 0.7139065554658398
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 204.1113335,
+            "p95_ms": 215.554844,
+            "min_ms": 184.232083,
+            "max_ms": 218.901917,
+            "sample_stddev_ms": 11.101518031369197
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 210.862583,
+            "p95_ms": 222.19333325,
+            "min_ms": 189.940124,
+            "max_ms": 225.73325,
+            "sample_stddev_ms": 11.452817890518363
+          },
+          "median_decode_ms_per_token": 3.2398624365079365,
+          "aggregate_decode_tokens_per_second": 310.0376853677284,
+          "aggregate_end_to_end_tokens_per_second": 305.44061173976615
+        },
+        "preallocated": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 6.014021,
+            "p95_ms": 7.88646825,
+            "min_ms": 5.763542,
+            "max_ms": 8.452541,
+            "sample_stddev_ms": 1.023001076115498
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 198.6088545,
+            "p95_ms": 227.61896875000002,
+            "min_ms": 182.562583,
+            "max_ms": 233.904625,
+            "sample_stddev_ms": 17.300572371210457
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 205.865521,
+            "p95_ms": 233.53529175,
+            "min_ms": 188.444208,
+            "max_ms": 239.87187500000002,
+            "sample_stddev_ms": 17.155674259058383
+          },
+          "median_decode_ms_per_token": 3.1525214999999998,
+          "aggregate_decode_tokens_per_second": 310.242209244424,
+          "aggregate_end_to_end_tokens_per_second": 305.55808339443354
+        }
+      },
+      "paired_speedup": {
+        "prefill_ms": {
+          "samples": [
+            1.0112921173995282,
+            1.1271353644870175,
+            1.0155361347354308,
+            1.0222446544156354,
+            0.6753047397226467,
+            1.2207745323799135
+          ],
+          "median": 1.018890394575533,
+          "min": 0.6753047397226467,
+          "max": 1.2207745323799135,
+          "sample_stddev": 0.184566844438435
+        },
+        "decode_total_ms": {
+          "samples": [
+            1.1236831591060477,
+            1.0961192800074622,
+            0.8786214680449349,
+            0.9692201310583344,
+            0.9327667524151274,
+            1.0363561691941197
+          ],
+          "median": 1.002788150126227,
+          "min": 0.8786214680449349,
+          "max": 1.1236831591060477,
+          "sample_stddev": 0.09574274620117162
+        },
+        "total_latency_ms": {
+          "samples": [
+            1.1201752669416085,
+            1.0970328471000736,
+            0.8820274698732395,
+            0.9706447123205497,
+            0.9222007862171692,
+            1.0420017770580803
+          ],
+          "median": 1.006323244689315,
+          "min": 0.8820274698732395,
+          "max": 1.1201752669416085,
+          "sample_stddev": 0.09618729545625507
+        }
+      },
+      "final_logical_bytes": 782336,
+      "final_reserved_bytes": 782336,
+      "theoretical_old_prefix_bytes_eliminated": 41029632,
+      "accounting": {
+        "decode_forwards": 63,
+        "kv_cat_calls": 504,
+        "prefill_logical_cache_bytes": 524288,
+        "final_logical_cache_bytes": 782336,
+        "theoretical_old_prefix_recopied_bytes": 41029632,
+        "theoretical_cat_output_bytes": 41287680,
+        "theoretical_cat_read_plus_write_bytes": 82575360,
+        "theoretical_new_kv_payload_bytes": 258048
+      },
+      "operation_counts": {
+        "preallocated_kv_storage_allocations_per_request": 8,
+        "preallocated_prefill_slice_writes": 8,
+        "preallocated_decode_slice_writes": 504,
+        "preallocated_decode_kv_storage_allocations": 0,
+        "cat_decode_kv_allocations": 504,
+        "note": "Algorithmic counts, not profiled allocator/kernel events. Projection, attention, RoPE and output-ID allocations remain."
+      }
+    },
+    {
+      "P": 32,
+      "N": 16,
+      "B": 4,
+      "modes": {
+        "cat": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 6.201604,
+            "p95_ms": 7.5564902499999995,
+            "min_ms": 5.201167,
+            "max_ms": 7.750209,
+            "sample_stddev_ms": 0.8839751325144088
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 50.530541,
+            "p95_ms": 54.617917250000005,
+            "min_ms": 42.343292,
+            "max_ms": 55.241959,
+            "sample_stddev_ms": 4.451457988747887
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 57.12098,
+            "p95_ms": 60.50447925,
+            "min_ms": 49.318625999999995,
+            "max_ms": 61.334292000000005,
+            "sample_stddev_ms": 4.018130532847873
+          },
+          "median_decode_ms_per_token": 3.3687027333333335,
+          "aggregate_decode_tokens_per_second": 1200.2523850706914,
+          "aggregate_end_to_end_tokens_per_second": 1135.4166662046644
+        },
+        "preallocated": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 6.011416499999999,
+            "p95_ms": 7.389146,
+            "min_ms": 5.386416,
+            "max_ms": 7.556625,
+            "sample_stddev_ms": 0.8066496587886632
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 49.337916500000006,
+            "p95_ms": 52.2140315,
+            "min_ms": 43.339625,
+            "max_ms": 52.856542,
+            "sample_stddev_ms": 3.2892018542987396
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 55.143249499999996,
+            "p95_ms": 58.142999749999994,
+            "min_ms": 50.226333999999994,
+            "max_ms": 58.242957999999994,
+            "sample_stddev_ms": 3.0528956017964766
+          },
+          "median_decode_ms_per_token": 3.2891944333333334,
+          "aggregate_decode_tokens_per_second": 1234.220829533533,
+          "aggregate_end_to_end_tokens_per_second": 1166.025394199025
+        }
+      },
+      "paired_speedup": {
+        "prefill_ms": {
+          "samples": [
+            0.7854035366317634,
+            1.4388433793453757,
+            1.0900946247131125,
+            0.8387006732932805,
+            1.01286899156041,
+            1.046545360846879
+          ],
+          "median": 1.0297071762036447,
+          "min": 0.7854035366317634,
+          "max": 1.4388433793453757,
+          "sample_stddev": 0.23133472891463874
+        },
+        "decode_total_ms": {
+          "samples": [
+            0.9815142433854017,
+            0.9184254240468475,
+            1.051667195508909,
+            1.133745139553129,
+            0.9770110378204703,
+            1.1157324553102286
+          ],
+          "median": 1.0165907194471553,
+          "min": 0.9184254240468475,
+          "max": 1.133745139553129,
+          "sample_stddev": 0.08507591365280807
+        },
+        "total_latency_ms": {
+          "samples": [
+            0.9558943435369371,
+            0.9665546348109587,
+            1.0557154984585,
+            1.0990422979568804,
+            0.9819276477554584,
+            1.1084535709550765
+          ],
+          "median": 1.0188215731069792,
+          "min": 0.9558943435369371,
+          "max": 1.1084535709550765,
+          "sample_stddev": 0.06838907219751833
+        }
+      },
+      "final_logical_bytes": 770048,
+      "final_reserved_bytes": 770048,
+      "theoretical_old_prefix_bytes_eliminated": 9584640,
+      "accounting": {
+        "decode_forwards": 15,
+        "kv_cat_calls": 120,
+        "prefill_logical_cache_bytes": 524288,
+        "final_logical_cache_bytes": 770048,
+        "theoretical_old_prefix_recopied_bytes": 9584640,
+        "theoretical_cat_output_bytes": 9830400,
+        "theoretical_cat_read_plus_write_bytes": 19660800,
+        "theoretical_new_kv_payload_bytes": 245760
+      },
+      "operation_counts": {
+        "preallocated_kv_storage_allocations_per_request": 8,
+        "preallocated_prefill_slice_writes": 8,
+        "preallocated_decode_slice_writes": 120,
+        "preallocated_decode_kv_storage_allocations": 0,
+        "cat_decode_kv_allocations": 120,
+        "note": "Algorithmic counts, not profiled allocator/kernel events. Projection, attention, RoPE and output-ID allocations remain."
+      }
+    },
+    {
+      "P": 256,
+      "N": 128,
+      "B": 4,
+      "modes": {
+        "cat": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 10.535792,
+            "p95_ms": 10.9230105,
+            "min_ms": 5.826209,
+            "max_ms": 10.937292,
+            "sample_stddev_ms": 2.1136864271581453
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 339.702583,
+            "p95_ms": 397.49533299999996,
+            "min_ms": 324.347167,
+            "max_ms": 414.292583,
+            "sample_stddev_ms": 33.5157179384001
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 350.41349949999994,
+            "p95_ms": 407.35257275,
+            "min_ms": 330.173376,
+            "max_ms": 424.8225,
+            "sample_stddev_ms": 34.192696386545194
+          },
+          "median_decode_ms_per_token": 2.6748234881889763,
+          "aggregate_decode_tokens_per_second": 1457.8395952954252,
+          "aggregate_end_to_end_tokens_per_second": 1430.6208554833484
+        },
+        "preallocated": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 10.7582915,
+            "p95_ms": 12.4409585,
+            "min_ms": 6.273333,
+            "max_ms": 12.739542,
+            "sample_stddev_ms": 2.2068201869541313
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 333.651646,
+            "p95_ms": 371.768667,
+            "min_ms": 322.920417,
+            "max_ms": 377.738917,
+            "sample_stddev_ms": 21.19950812136304
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 344.59970799999996,
+            "p95_ms": 383.91987550000005,
+            "min_ms": 332.656708,
+            "max_ms": 390.47845900000004,
+            "sample_stddev_ms": 22.523777483428265
+          },
+          "median_decode_ms_per_token": 2.62717831496063,
+          "aggregate_decode_tokens_per_second": 1488.133077577679,
+          "aggregate_end_to_end_tokens_per_second": 1455.4899379545298
+        }
+      },
+      "paired_speedup": {
+        "prefill_ms": {
+          "samples": [
+            0.8265538117461365,
+            1.0149678304151044,
+            0.7573443741597362,
+            0.9423967069281037,
+            0.9287262448844976,
+            0.9826526060442706
+          ],
+          "median": 0.9355614759063007,
+          "min": 0.7573443741597362,
+          "max": 1.0149678304151044,
+          "sample_stddev": 0.0979334952751334
+        },
+        "decode_total_ms": {
+          "samples": [
+            1.0967696584993385,
+            0.9698088541000482,
+            1.060964045925765,
+            0.9884931299443581,
+            0.9937612998823853,
+            1.008349063292582
+          ],
+          "median": 1.0010551815874837,
+          "min": 0.9698088541000482,
+          "max": 1.0967696584993385,
+          "sample_stddev": 0.04879981222936171
+        },
+        "total_latency_ms": {
+          "samples": [
+            1.08795374036241,
+            0.9710965358741201,
+            1.0516524830052012,
+            0.9869798851990127,
+            0.9925348506725439,
+            1.0074928725210146
+          ],
+          "median": 1.0000138615967793,
+          "min": 0.9710965358741201,
+          "max": 1.08795374036241,
+          "sample_stddev": 0.044563270394964
+        }
+      },
+      "final_logical_bytes": 6275072,
+      "final_reserved_bytes": 6275072,
+      "theoretical_old_prefix_bytes_eliminated": 663764992,
+      "accounting": {
+        "decode_forwards": 127,
+        "kv_cat_calls": 1016,
+        "prefill_logical_cache_bytes": 4194304,
+        "final_logical_cache_bytes": 6275072,
+        "theoretical_old_prefix_recopied_bytes": 663764992,
+        "theoretical_cat_output_bytes": 665845760,
+        "theoretical_cat_read_plus_write_bytes": 1331691520,
+        "theoretical_new_kv_payload_bytes": 2080768
+      },
+      "operation_counts": {
+        "preallocated_kv_storage_allocations_per_request": 8,
+        "preallocated_prefill_slice_writes": 8,
+        "preallocated_decode_slice_writes": 1016,
+        "preallocated_decode_kv_storage_allocations": 0,
+        "cat_decode_kv_allocations": 1016,
+        "note": "Algorithmic counts, not profiled allocator/kernel events. Projection, attention, RoPE and output-ID allocations remain."
+      }
+    },
+    {
+      "P": 256,
+      "N": 128,
+      "B": 1,
+      "modes": {
+        "cat": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 5.9216455,
+            "p95_ms": 6.0773855,
+            "min_ms": 4.260291,
+            "max_ms": 6.078625,
+            "sample_stddev_ms": 0.7025009569623851
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 337.034042,
+            "p95_ms": 467.462583,
+            "min_ms": 318.920041,
+            "max_ms": 493.693291,
+            "sample_stddev_ms": 67.62470122026753
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 342.9556875,
+            "p95_ms": 473.5399685,
+            "min_ms": 323.180332,
+            "max_ms": 499.771916,
+            "sample_stddev_ms": 67.95028025020466
+          },
+          "median_decode_ms_per_token": 2.653811354330709,
+          "aggregate_decode_tokens_per_second": 347.0733159462629,
+          "aggregate_end_to_end_tokens_per_second": 344.47222842714535
+        },
+        "preallocated": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 5.6705625,
+            "p95_ms": 6.3223227500000005,
+            "min_ms": 4.0145,
+            "max_ms": 6.368375,
+            "sample_stddev_ms": 1.0004498998192097
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 326.48175000000003,
+            "p95_ms": 376.4513025,
+            "min_ms": 321.830708,
+            "max_ms": 387.052417,
+            "sample_stddev_ms": 24.996180870459877
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 332.2155,
+            "p95_ms": 382.50834375,
+            "min_ms": 326.048208,
+            "max_ms": 393.236583,
+            "sample_stddev_ms": 25.498579396115026
+          },
+          "median_decode_ms_per_token": 2.570722440944882,
+          "aggregate_decode_tokens_per_second": 374.9535458021116,
+          "aggregate_end_to_end_tokens_per_second": 372.0249958537499
+        }
+      },
+      "paired_speedup": {
+        "prefill_ms": {
+          "samples": [
+            0.7506238473821667,
+            1.0280794597718312,
+            1.44011072910492,
+            0.9545017370993384,
+            0.9282037383860653,
+            1.4992527089301282
+          ],
+          "median": 0.9912905984355849,
+          "min": 0.7506238473821667,
+          "max": 1.4992527089301282,
+          "sample_stddev": 0.3009976393227193
+        },
+        "decode_total_ms": {
+          "samples": [
+            0.9253501512829212,
+            1.0447125795983345,
+            1.2079967800959504,
+            1.5155254926440345,
+            0.8268897233110419,
+            1.0199178637149944
+          ],
+          "median": 1.0323152216566645,
+          "min": 0.8268897233110419,
+          "max": 1.5155254926440345,
+          "sample_stddev": 0.24425159404591892
+        },
+        "total_latency_ms": {
+          "samples": [
+            0.9225193735577515,
+            1.0444290024270382,
+            1.2109992213176035,
+            1.5047680855572378,
+            0.8284830203602903,
+            1.0257430783016184
+          ],
+          "median": 1.0350860403643283,
+          "min": 0.8284830203602903,
+          "max": 1.5047680855572378,
+          "sample_stddev": 0.24054869621439096
+        }
+      },
+      "final_logical_bytes": 1568768,
+      "final_reserved_bytes": 1568768,
+      "theoretical_old_prefix_bytes_eliminated": 165941248,
+      "accounting": {
+        "decode_forwards": 127,
+        "kv_cat_calls": 1016,
+        "prefill_logical_cache_bytes": 1048576,
+        "final_logical_cache_bytes": 1568768,
+        "theoretical_old_prefix_recopied_bytes": 165941248,
+        "theoretical_cat_output_bytes": 166461440,
+        "theoretical_cat_read_plus_write_bytes": 332922880,
+        "theoretical_new_kv_payload_bytes": 520192
+      },
+      "operation_counts": {
+        "preallocated_kv_storage_allocations_per_request": 8,
+        "preallocated_prefill_slice_writes": 8,
+        "preallocated_decode_slice_writes": 1016,
+        "preallocated_decode_kv_storage_allocations": 0,
+        "cat_decode_kv_allocations": 1016,
+        "note": "Algorithmic counts, not profiled allocator/kernel events. Projection, attention, RoPE and output-ID allocations remain."
+      }
+    },
+    {
+      "P": 128,
+      "N": 16,
+      "B": 1,
+      "modes": {
+        "cat": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 5.9626874999999995,
+            "p95_ms": 6.16387475,
+            "min_ms": 5.646959,
+            "max_ms": 6.190958,
+            "sample_stddev_ms": 0.2062080316900065
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 44.8221875,
+            "p95_ms": 47.564063000000004,
+            "min_ms": 42.022833,
+            "max_ms": 48.050209,
+            "sample_stddev_ms": 2.205900640326162
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 50.6869795,
+            "p95_ms": 53.49499,
+            "min_ms": 47.842666,
+            "max_ms": 53.894459000000005,
+            "sample_stddev_ms": 2.243955072586327
+          },
+          "median_decode_ms_per_token": 2.9881458333333333,
+          "aggregate_decode_tokens_per_second": 334.95668353194657,
+          "aggregate_end_to_end_tokens_per_second": 315.41884720069174
+        },
+        "preallocated": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 6.2844585,
+            "p95_ms": 6.82695875,
+            "min_ms": 5.816375,
+            "max_ms": 6.857584,
+            "sample_stddev_ms": 0.3873885631356456
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 42.8493545,
+            "p95_ms": 43.74804225,
+            "min_ms": 41.150959,
+            "max_ms": 43.971084,
+            "sample_stddev_ms": 0.923759563131878
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 48.91110449999999,
+            "p95_ms": 50.43915725,
+            "min_ms": 47.886042,
+            "max_ms": 50.828668,
+            "sample_stddev_ms": 0.9738200049940949
+          },
+          "median_decode_ms_per_token": 2.8566236333333332,
+          "aggregate_decode_tokens_per_second": 351.07091843194877,
+          "aggregate_end_to_end_tokens_per_second": 325.9960153710789
+        }
+      },
+      "paired_speedup": {
+        "prefill_ms": {
+          "samples": [
+            1.064401452794911,
+            0.9509482064556272,
+            0.9031254700201913,
+            0.8888474569601573,
+            0.9362979005732495,
+            0.8867736800599162
+          ],
+          "median": 0.9197116852967204,
+          "min": 0.8867736800599162,
+          "max": 1.064401452794911,
+          "sample_stddev": 0.06693768192218498
+        },
+        "decode_total_ms": {
+          "samples": [
+            1.0702596121439174,
+            1.1231615497355394,
+            1.1027304855762898,
+            1.0314197704898935,
+            0.9897322088139533,
+            0.9749229061535076
+          ],
+          "median": 1.0508396913169054,
+          "min": 0.9749229061535076,
+          "max": 1.1231615497355394,
+          "sample_stddev": 0.06024532981868179
+        },
+        "total_latency_ms": {
+          "samples": [
+            1.0695627505404817,
+            1.1015298388819392,
+            1.07465641031681,
+            1.0130360026892293,
+            0.9829085952313141,
+            0.9630301939055338
+          ],
+          "median": 1.0412993766148555,
+          "min": 0.9630301939055338,
+          "max": 1.1015298388819392,
+          "sample_stddev": 0.05579315182792987
+        }
+      },
+      "final_logical_bytes": 585728,
+      "final_reserved_bytes": 585728,
+      "theoretical_old_prefix_bytes_eliminated": 8294400,
+      "accounting": {
+        "decode_forwards": 15,
+        "kv_cat_calls": 120,
+        "prefill_logical_cache_bytes": 524288,
+        "final_logical_cache_bytes": 585728,
+        "theoretical_old_prefix_recopied_bytes": 8294400,
+        "theoretical_cat_output_bytes": 8355840,
+        "theoretical_cat_read_plus_write_bytes": 16711680,
+        "theoretical_new_kv_payload_bytes": 61440
+      },
+      "operation_counts": {
+        "preallocated_kv_storage_allocations_per_request": 8,
+        "preallocated_prefill_slice_writes": 8,
+        "preallocated_decode_slice_writes": 120,
+        "preallocated_decode_kv_storage_allocations": 0,
+        "cat_decode_kv_allocations": 120,
+        "note": "Algorithmic counts, not profiled allocator/kernel events. Projection, attention, RoPE and output-ID allocations remain."
+      }
+    },
+    {
+      "P": 128,
+      "N": 16,
+      "B": 4,
+      "modes": {
+        "cat": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 7.350979000000001,
+            "p95_ms": 8.16080225,
+            "min_ms": 6.889083,
+            "max_ms": 8.3085,
+            "sample_stddev_ms": 0.4933186607885077
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 42.3939585,
+            "p95_ms": 44.41392675,
+            "min_ms": 40.476084,
+            "max_ms": 44.867833,
+            "sample_stddev_ms": 1.54261679529991
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 49.514207999999996,
+            "p95_ms": 52.23538575,
+            "min_ms": 47.83175,
+            "max_ms": 52.585542,
+            "sample_stddev_ms": 1.7538612799504592
+          },
+          "median_decode_ms_per_token": 2.8262639,
+          "aggregate_decode_tokens_per_second": 1414.6441502525147,
+          "aggregate_end_to_end_tokens_per_second": 1283.105826084348
+        },
+        "preallocated": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 7.4183125,
+            "p95_ms": 7.984041500000001,
+            "min_ms": 7.014417,
+            "max_ms": 8.146375,
+            "sample_stddev_ms": 0.3802625679597808
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 41.285625,
+            "p95_ms": 43.195875,
+            "min_ms": 39.964083,
+            "max_ms": 43.3345,
+            "sample_stddev_ms": 1.3535995660202336
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 48.838708499999996,
+            "p95_ms": 50.381603999999996,
+            "min_ms": 47.461124000000005,
+            "max_ms": 50.577332999999996,
+            "sample_stddev_ms": 1.120688808805487
+          },
+          "median_decode_ms_per_token": 2.7523750000000002,
+          "aggregate_decode_tokens_per_second": 1445.614529752777,
+          "aggregate_end_to_end_tokens_per_second": 1307.1613666061635
+        }
+      },
+      "paired_speedup": {
+        "prefill_ms": {
+          "samples": [
+            0.988006379619603,
+            1.019901489926501,
+            1.0655649522776516,
+            0.9821319433960086,
+            0.9571276187498508,
+            0.9938613306037731
+          ],
+          "median": 0.9909338551116881,
+          "min": 0.9571276187498508,
+          "max": 1.0655649522776516,
+          "sample_stddev": 0.03748713059829013
+        },
+        "decode_total_ms": {
+          "samples": [
+            0.9917914699788779,
+            1.06184393215439,
+            1.0353836550554407,
+            1.0063629733520336,
+            1.0487291801490852,
+            0.9889068930208061
+          ],
+          "median": 1.0208733142037372,
+          "min": 0.9889068930208061,
+          "max": 1.06184393215439,
+          "sample_stddev": 0.03076739535843289
+        },
+        "total_latency_ms": {
+          "samples": [
+            0.9912075049836765,
+            1.05480272127797,
+            1.0397057116475477,
+            1.0029496077843425,
+            1.0342596395315036,
+            0.98965196293591
+          ],
+          "median": 1.018604623657923,
+          "min": 0.98965196293591,
+          "max": 1.05480272127797,
+          "sample_stddev": 0.027692691005036643
+        }
+      },
+      "final_logical_bytes": 2342912,
+      "final_reserved_bytes": 2342912,
+      "theoretical_old_prefix_bytes_eliminated": 33177600,
+      "accounting": {
+        "decode_forwards": 15,
+        "kv_cat_calls": 120,
+        "prefill_logical_cache_bytes": 2097152,
+        "final_logical_cache_bytes": 2342912,
+        "theoretical_old_prefix_recopied_bytes": 33177600,
+        "theoretical_cat_output_bytes": 33423360,
+        "theoretical_cat_read_plus_write_bytes": 66846720,
+        "theoretical_new_kv_payload_bytes": 245760
+      },
+      "operation_counts": {
+        "preallocated_kv_storage_allocations_per_request": 8,
+        "preallocated_prefill_slice_writes": 8,
+        "preallocated_decode_slice_writes": 120,
+        "preallocated_decode_kv_storage_allocations": 0,
+        "cat_decode_kv_allocations": 120,
+        "note": "Algorithmic counts, not profiled allocator/kernel events. Projection, attention, RoPE and output-ID allocations remain."
+      }
+    },
+    {
+      "P": 128,
+      "N": 128,
+      "B": 1,
+      "modes": {
+        "cat": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 5.891167,
+            "p95_ms": 6.5169685,
+            "min_ms": 4.848917,
+            "max_ms": 6.646708,
+            "sample_stddev_ms": 0.5968205488474461
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 331.6814995,
+            "p95_ms": 339.44196825,
+            "min_ms": 320.860167,
+            "max_ms": 340.011541,
+            "sample_stddev_ms": 7.272189487032774
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 337.57266649999997,
+            "p95_ms": 345.6392285,
+            "min_ms": 326.455333,
+            "max_ms": 346.658249,
+            "sample_stddev_ms": 7.348285063788338
+          },
+          "median_decode_ms_per_token": 2.6116653503937006,
+          "aggregate_decode_tokens_per_second": 383.15459842591554,
+          "aggregate_end_to_end_tokens_per_second": 379.49271793202433
+        },
+        "preallocated": {
+          "prefill_latency": {
+            "count": 6,
+            "p50_ms": 6.3434585000000006,
+            "p95_ms": 8.53102125,
+            "min_ms": 5.226584,
+            "max_ms": 9.192917,
+            "sample_stddev_ms": 1.358358582068029
+          },
+          "decode_latency": {
+            "count": 6,
+            "p50_ms": 349.4075415,
+            "p95_ms": 362.95332275,
+            "min_ms": 327.011208,
+            "max_ms": 365.001375,
+            "sample_stddev_ms": 12.737499430906466
+          },
+          "total_latency": {
+            "count": 6,
+            "p50_ms": 356.320146,
+            "p95_ms": 369.02946875000004,
+            "min_ms": 333.452083,
+            "max_ms": 370.921125,
+            "sample_stddev_ms": 12.592509551620294
+          },
+          "median_decode_ms_per_token": 2.7512404842519684,
+          "aggregate_decode_tokens_per_second": 363.8857122615983,
+          "aggregate_end_to_end_tokens_per_second": 359.94900242533635
+        }
+      },
+      "paired_speedup": {
+        "prefill_ms": {
+          "samples": [
+            0.9016792725932703,
+            0.7230249114617265,
+            0.9513847109282512,
+            0.941482942317711,
+            1.0705206306834445,
+            0.8191084082942692
+          ],
+          "median": 0.9215811074554907,
+          "min": 0.7230249114617265,
+          "max": 1.0705206306834445,
+          "sample_stddev": 0.11941215845487112
+        },
+        "decode_total_ms": {
+          "samples": [
+            0.9212545929943964,
+            0.9814803569869287,
+            0.9993095282532334,
+            0.9540354667536826,
+            0.921903359087004,
+            0.9252930896493198
+          ],
+          "median": 0.9396642782015012,
+          "min": 0.9212545929943964,
+          "max": 0.9993095282532334,
+          "sample_stddev": 0.03365438869483771
+        },
+        "total_latency_ms": {
+          "samples": [
+            0.9209019703897984,
+            0.9747991851092066,
+            0.9983838247608127,
+            0.9538158612207085,
+            0.9241021474531894,
+            0.9235984254064796
+          ],
+          "median": 0.9389590043369489,
+          "min": 0.9209019703897984,
+          "max": 0.9983838247608127,
+          "sample_stddev": 0.03219244482650153
+        }
+      },
+      "final_logical_bytes": 1044480,
+      "final_reserved_bytes": 1044480,
+      "theoretical_old_prefix_bytes_eliminated": 99356672,
+      "accounting": {
+        "decode_forwards": 127,
+        "kv_cat_calls": 1016,
+        "prefill_logical_cache_bytes": 524288,
+        "final_logical_cache_bytes": 1044480,
+        "theoretical_old_prefix_recopied_bytes": 99356672,
+        "theoretical_cat_output_bytes": 99876864,
+        "theoretical_cat_read_plus_write_bytes": 199753728,
+        "theoretical_new_kv_payload_bytes": 520192
+      },
+      "operation_counts": {
+        "preallocated_kv_storage_allocations_per_request": 8,
+        "preallocated_prefill_slice_writes": 8,
+        "preallocated_decode_slice_writes": 1016,
+        "preallocated_decode_kv_storage_allocations": 0,
+        "cat_decode_kv_allocations": 1016,
+        "note": "Algorithmic counts, not profiled allocator/kernel events. Projection, attention, RoPE and output-ID allocations remain."
+      }
+    }
+  ],
+  "caveat": "Theoretical copy elimination is not measured physical traffic savings."
+}

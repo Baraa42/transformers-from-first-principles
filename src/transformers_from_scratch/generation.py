@@ -80,6 +80,7 @@ def generate_greedy_cached(
     *,
     max_new_tokens: int,
     context_length: int,
+    cache_mode: str = "cat",
 ) -> torch.Tensor:
     """Append deterministic argmax tokens using an untruncated KV cache.
 
@@ -94,6 +95,7 @@ def generate_greedy_cached(
         max_new_tokens=max_new_tokens,
         context_length=context_length,
         do_sample=False,
+        cache_mode=cache_mode,
     )
 
 
@@ -103,6 +105,7 @@ def generate_cached(
     *,
     max_new_tokens: int,
     context_length: int,
+    cache_mode: str = "cat",
     do_sample: bool,
     temperature: float = 1.0,
     top_k: int | None = None,
@@ -142,6 +145,13 @@ def generate_cached(
         if required_context > context_length:
             raise ValueError("context_length must fit the largest cached prefix forward")
 
+    if cache_mode not in ("cat", "preallocated"):
+        raise ValueError("cache_mode must be cat or preallocated")
+    cache_kwargs = {} if cache_mode == "cat" else {"cache_mode": cache_mode}
+    prefill_kwargs = dict(cache_kwargs)
+    if cache_mode == "preallocated" and max_new_tokens > 0:
+        prefill_kwargs["cache_capacity"] = required_context
+
     was_training = model.training
     model.eval()
     generated = input_ids.clone()
@@ -150,11 +160,13 @@ def generate_cached(
             if max_new_tokens == 0:
                 return generated
 
-            logits, cache = model(input_ids, use_cache=True)
+            logits, cache = model(input_ids, use_cache=True, **prefill_kwargs)
             next_token = input_ids[:, -1:]
             for token_index in range(max_new_tokens):
                 if token_index > 0:
-                    logits, cache = model(next_token, use_cache=True, kv_cache=cache)
+                    logits, cache = model(
+                        next_token, use_cache=True, kv_cache=cache, **cache_kwargs
+                    )
                 if do_sample:
                     next_token = sample_next_token(
                         logits[:, -1, :],

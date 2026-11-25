@@ -1,0 +1,635 @@
+{
+  "schema_version": 1,
+  "workloads": [
+    {
+      "P": 32,
+      "N": 128,
+      "B": 1,
+      "decode_forwards": 127,
+      "kv_cat_calls": 1016,
+      "prefill_logical_cache_bytes": 131072,
+      "final_logical_cache_bytes": 651264,
+      "theoretical_old_prefix_recopied_bytes": 49418240,
+      "theoretical_cat_output_bytes": 49938432,
+      "theoretical_cat_read_plus_write_bytes": 99876864,
+      "theoretical_new_kv_payload_bytes": 520192,
+      "decode_latency": {
+        "count": 5,
+        "p50_ms": 417.062375,
+        "p95_ms": 485.0542084,
+        "min_ms": 359.47125,
+        "max_ms": 486.688625,
+        "sample_stddev_ms": 54.876699754472
+      },
+      "metrics_from_p50": {
+        "decode_total_ms": 417.062375,
+        "ms_per_decode_token": 3.2839557086614173,
+        "aggregate_decode_tokens_per_second": 304.5108060874588,
+        "per_sequence_decode_tokens_per_second": 304.5108060874588
+      },
+      "total_latency": {
+        "count": 5,
+        "p50_ms": 426.106792,
+        "p95_ms": 489.5053916,
+        "min_ms": 363.6045,
+        "max_ms": 491.367208,
+        "sample_stddev_ms": 54.64818739224148
+      }
+    },
+    {
+      "P": 256,
+      "N": 64,
+      "B": 4,
+      "decode_forwards": 63,
+      "kv_cat_calls": 504,
+      "prefill_logical_cache_bytes": 4194304,
+      "final_logical_cache_bytes": 5226496,
+      "theoretical_old_prefix_recopied_bytes": 296239104,
+      "theoretical_cat_output_bytes": 297271296,
+      "theoretical_cat_read_plus_write_bytes": 594542592,
+      "theoretical_new_kv_payload_bytes": 1032192,
+      "decode_latency": {
+        "count": 5,
+        "p50_ms": 216.42675,
+        "p95_ms": 235.4348746,
+        "min_ms": 176.895458,
+        "max_ms": 237.898208,
+        "sample_stddev_ms": 22.86560767471007
+      },
+      "metrics_from_p50": {
+        "decode_total_ms": 216.42675,
+        "ms_per_decode_token": 3.435345238095238,
+        "aggregate_decode_tokens_per_second": 1164.3662347653421,
+        "per_sequence_decode_tokens_per_second": 291.09155869133554
+      },
+      "total_latency": {
+        "count": 5,
+        "p50_ms": 229.189458,
+        "p95_ms": 246.3050246,
+        "min_ms": 187.62658299999998,
+        "max_ms": 248.675833,
+        "sample_stddev_ms": 22.9950756528587
+      }
+    },
+    {
+      "P": 32,
+      "N": 64,
+      "B": 4,
+      "decode_forwards": 63,
+      "kv_cat_calls": 504,
+      "prefill_logical_cache_bytes": 524288,
+      "final_logical_cache_bytes": 1556480,
+      "theoretical_old_prefix_recopied_bytes": 65028096,
+      "theoretical_cat_output_bytes": 66060288,
+      "theoretical_cat_read_plus_write_bytes": 132120576,
+      "theoretical_new_kv_payload_bytes": 1032192,
+      "decode_latency": {
+        "count": 5,
+        "p50_ms": 197.910167,
+        "p95_ms": 226.8219752,
+        "min_ms": 153.007667,
+        "max_ms": 230.580292,
+        "sample_stddev_ms": 29.51628273333972
+      },
+      "metrics_from_p50": {
+        "decode_total_ms": 197.910167,
+        "ms_per_decode_token": 3.1414312222222223,
+        "aggregate_decode_tokens_per_second": 1273.3049737662038,
+        "per_sequence_decode_tokens_per_second": 318.32624344155096
+      },
+      "total_latency": {
+        "count": 5,
+        "p50_ms": 204.539917,
+        "p95_ms": 232.1451918,
+        "min_ms": 157.233959,
+        "max_ms": 235.707542,
+        "sample_stddev_ms": 30.18219239366372
+      }
+    },
+    {
+      "P": 32,
+      "N": 64,
+      "B": 1,
+      "decode_forwards": 63,
+      "kv_cat_calls": 504,
+      "prefill_logical_cache_bytes": 131072,
+      "final_logical_cache_bytes": 389120,
+      "theoretical_old_prefix_recopied_bytes": 16257024,
+      "theoretical_cat_output_bytes": 16515072,
+      "theoretical_cat_read_plus_write_bytes": 33030144,
+      "theoretical_new_kv_payload_bytes": 258048,
+      "decode_latency": {
+        "count": 5,
+        "p50_ms": 196.754334,
+        "p95_ms": 225.4242748,
+        "min_ms": 156.660875,
+        "max_ms": 230.893333,
+        "sample_stddev_ms": 30.899075230733224
+      },
+      "metrics_from_p50": {
+        "decode_total_ms": 196.754334,
+        "ms_per_decode_token": 3.1230846666666667,
+        "aggregate_decode_tokens_per_second": 320.19625041652193,
+        "per_sequence_decode_tokens_per_second": 320.19625041652193
+      },
+      "total_latency": {
+        "count": 5,
+        "p50_ms": 201.871334,
+        "p95_ms": 230.24398340000002,
+        "min_ms": 161.91554100000002,
+        "max_ms": 235.690625,
+        "sample_stddev_ms": 30.534602032972934
+      }
+    },
+    {
+      "P": 32,
+      "N": 128,
+      "B": 4,
+      "decode_forwards": 127,
+      "kv_cat_calls": 1016,
+      "prefill_logical_cache_bytes": 524288,
+      "final_logical_cache_bytes": 2605056,
+      "theoretical_old_prefix_recopied_bytes": 197672960,
+      "theoretical_cat_output_bytes": 199753728,
+      "theoretical_cat_read_plus_write_bytes": 399507456,
+      "theoretical_new_kv_payload_bytes": 2080768,
+      "decode_latency": {
+        "count": 5,
+        "p50_ms": 420.753334,
+        "p95_ms": 439.7382088,
+        "min_ms": 350.723417,
+        "max_ms": 443.054334,
+        "sample_stddev_ms": 35.38260344006128
+      },
+      "metrics_from_p50": {
+        "decode_total_ms": 420.753334,
+        "ms_per_decode_token": 3.3130183779527558,
+        "aggregate_decode_tokens_per_second": 1207.358228562486,
+        "per_sequence_decode_tokens_per_second": 301.8395571406215
+      },
+      "total_latency": {
+        "count": 5,
+        "p50_ms": 426.422668,
+        "p95_ms": 445.1465838,
+        "min_ms": 355.775042,
+        "max_ms": 448.473459,
+        "sample_stddev_ms": 35.54894766244972
+      }
+    },
+    {
+      "P": 256,
+      "N": 16,
+      "B": 4,
+      "decode_forwards": 15,
+      "kv_cat_calls": 120,
+      "prefill_logical_cache_bytes": 4194304,
+      "final_logical_cache_bytes": 4440064,
+      "theoretical_old_prefix_recopied_bytes": 64634880,
+      "theoretical_cat_output_bytes": 64880640,
+      "theoretical_cat_read_plus_write_bytes": 129761280,
+      "theoretical_new_kv_payload_bytes": 245760,
+      "decode_latency": {
+        "count": 5,
+        "p50_ms": 59.581167,
+        "p95_ms": 62.5923666,
+        "min_ms": 44.448583,
+        "max_ms": 63.07575,
+        "sample_stddev_ms": 7.360343764977218
+      },
+      "metrics_from_p50": {
+        "decode_total_ms": 59.581167,
+        "ms_per_decode_token": 3.9720778,
+        "aggregate_decode_tokens_per_second": 1007.0296206182064,
+        "per_sequence_decode_tokens_per_second": 251.7574051545516
+      },
+      "total_latency": {
+        "count": 5,
+        "p50_ms": 69.49641700000001,
+        "p95_ms": 73.1232752,
+        "min_ms": 53.163791,
+        "max_ms": 73.478167,
+        "sample_stddev_ms": 8.138484996813675
+      }
+    },
+    {
+      "P": 256,
+      "N": 64,
+      "B": 1,
+      "decode_forwards": 63,
+      "kv_cat_calls": 504,
+      "prefill_logical_cache_bytes": 1048576,
+      "final_logical_cache_bytes": 1306624,
+      "theoretical_old_prefix_recopied_bytes": 74059776,
+      "theoretical_cat_output_bytes": 74317824,
+      "theoretical_cat_read_plus_write_bytes": 148635648,
+      "theoretical_new_kv_payload_bytes": 258048,
+      "decode_latency": {
+        "count": 5,
+        "p50_ms": 182.004333,
+        "p95_ms": 188.2710666,
+        "min_ms": 176.814166,
+        "max_ms": 189.8245,
+        "sample_stddev_ms": 5.199075725424405
+      },
+      "metrics_from_p50": {
+        "decode_total_ms": 182.004333,
+        "ms_per_decode_token": 2.8889576666666668,
+        "aggregate_decode_tokens_per_second": 346.1456052257833,
+        "per_sequence_decode_tokens_per_second": 346.1456052257833
+      },
+      "total_latency": {
+        "count": 5,
+        "p50_ms": 187.614291,
+        "p95_ms": 194.261425,
+        "min_ms": 183.483416,
+        "max_ms": 195.821125,
+        "sample_stddev_ms": 5.031690833543199
+      }
+    },
+    {
+      "P": 32,
+      "N": 16,
+      "B": 1,
+      "decode_forwards": 15,
+      "kv_cat_calls": 120,
+      "prefill_logical_cache_bytes": 131072,
+      "final_logical_cache_bytes": 192512,
+      "theoretical_old_prefix_recopied_bytes": 2396160,
+      "theoretical_cat_output_bytes": 2457600,
+      "theoretical_cat_read_plus_write_bytes": 4915200,
+      "theoretical_new_kv_payload_bytes": 61440,
+      "decode_latency": {
+        "count": 5,
+        "p50_ms": 44.519542,
+        "p95_ms": 55.471866399999996,
+        "min_ms": 42.825583,
+        "max_ms": 58.158458,
+        "sample_stddev_ms": 6.3153950071865905
+      },
+      "metrics_from_p50": {
+        "decode_total_ms": 44.519542,
+        "ms_per_decode_token": 2.9679694666666667,
+        "aggregate_decode_tokens_per_second": 336.9306898979329,
+        "per_sequence_decode_tokens_per_second": 336.9306898979329
+      },
+      "total_latency": {
+        "count": 5,
+        "p50_ms": 49.481624999999994,
+        "p95_ms": 60.8390086,
+        "min_ms": 47.475333,
+        "max_ms": 62.843042000000004,
+        "sample_stddev_ms": 6.170021805884744
+      }
+    },
+    {
+      "P": 128,
+      "N": 64,
+      "B": 4,
+      "decode_forwards": 63,
+      "kv_cat_calls": 504,
+      "prefill_logical_cache_bytes": 2097152,
+      "final_logical_cache_bytes": 3129344,
+      "theoretical_old_prefix_recopied_bytes": 164118528,
+      "theoretical_cat_output_bytes": 165150720,
+      "theoretical_cat_read_plus_write_bytes": 330301440,
+      "theoretical_new_kv_payload_bytes": 1032192,
+      "decode_latency": {
+        "count": 5,
+        "p50_ms": 219.145,
+        "p95_ms": 281.3595162,
+        "min_ms": 177.356375,
+        "max_ms": 292.983541,
+        "sample_stddev_ms": 42.24560258842575
+      },
+      "metrics_from_p50": {
+        "decode_total_ms": 219.145,
+        "ms_per_decode_token": 3.4784920634920637,
+        "aggregate_decode_tokens_per_second": 1149.9235665883318,
+        "per_sequence_decode_tokens_per_second": 287.48089164708296
+      },
+      "total_latency": {
+        "count": 5,
+        "p50_ms": 226.750417,
+        "p95_ms": 288.48671579999996,
+        "min_ms": 185.04891700000002,
+        "max_ms": 300.009999,
+        "sample_stddev_ms": 41.93567217039205
+      }
+    },
+    {
+      "P": 128,
+      "N": 128,
+      "B": 4,
+      "decode_forwards": 127,
+      "kv_cat_calls": 1016,
+      "prefill_logical_cache_bytes": 2097152,
+      "final_logical_cache_bytes": 4177920,
+      "theoretical_old_prefix_recopied_bytes": 397426688,
+      "theoretical_cat_output_bytes": 399507456,
+      "theoretical_cat_read_plus_write_bytes": 799014912,
+      "theoretical_new_kv_payload_bytes": 2080768,
+      "decode_latency": {
+        "count": 5,
+        "p50_ms": 379.757875,
+        "p95_ms": 489.5301916,
+        "min_ms": 332.798791,
+        "max_ms": 509.107,
+        "sample_stddev_ms": 68.56690223443943
+      },
+      "metrics_from_p50": {
+        "decode_total_ms": 379.757875,
+        "ms_per_decode_token": 2.9902194881889765,
+        "aggregate_decode_tokens_per_second": 1337.6944454410589,
+        "per_sequence_decode_tokens_per_second": 334.4236113602647
+      },
+      "total_latency": {
+        "count": 5,
+        "p50_ms": 384.203666,
+        "p95_ms": 497.1971664,
+        "min_ms": 336.791666,
+        "max_ms": 516.4645830000001,
+        "sample_stddev_ms": 69.72116557475742
+      }
+    },
+    {
+      "P": 256,
+      "N": 16,
+      "B": 1,
+      "decode_forwards": 15,
+      "kv_cat_calls": 120,
+      "prefill_logical_cache_bytes": 1048576,
+      "final_logical_cache_bytes": 1110016,
+      "theoretical_old_prefix_recopied_bytes": 16158720,
+      "theoretical_cat_output_bytes": 16220160,
+      "theoretical_cat_read_plus_write_bytes": 32440320,
+      "theoretical_new_kv_payload_bytes": 61440,
+      "decode_latency": {
+        "count": 5,
+        "p50_ms": 59.664291,
+        "p95_ms": 75.4939668,
+        "min_ms": 43.916166,
+        "max_ms": 76.395125,
+        "sample_stddev_ms": 15.143594311701621
+      },
+      "metrics_from_p50": {
+        "decode_total_ms": 59.664291,
+        "ms_per_decode_token": 3.9776194,
+        "aggregate_decode_tokens_per_second": 251.40665796229774,
+        "per_sequence_decode_tokens_per_second": 251.40665796229774
+      },
+      "total_latency": {
+        "count": 5,
+        "p50_ms": 65.115666,
+        "p95_ms": 82.6662834,
+        "min_ms": 49.481041,
+        "max_ms": 84.01487499999999,
+        "sample_stddev_ms": 15.733176988893128
+      }
+    },
+    {
+      "P": 128,
+      "N": 64,
+      "B": 1,
+      "decode_forwards": 63,
+      "kv_cat_calls": 504,
+      "prefill_logical_cache_bytes": 524288,
+      "final_logical_cache_bytes": 782336,
+      "theoretical_old_prefix_recopied_bytes": 41029632,
+      "theoretical_cat_output_bytes": 41287680,
+      "theoretical_cat_read_plus_write_bytes": 82575360,
+      "theoretical_new_kv_payload_bytes": 258048,
+      "decode_latency": {
+        "count": 5,
+        "p50_ms": 179.166041,
+        "p95_ms": 208.4009412,
+        "min_ms": 164.909417,
+        "max_ms": 210.515166,
+        "sample_stddev_ms": 19.947684670353215
+      },
+      "metrics_from_p50": {
+        "decode_total_ms": 179.166041,
+        "ms_per_decode_token": 2.8439054126984127,
+        "aggregate_decode_tokens_per_second": 351.6291348983929,
+        "per_sequence_decode_tokens_per_second": 351.6291348983929
+      },
+      "total_latency": {
+        "count": 5,
+        "p50_ms": 185.325166,
+        "p95_ms": 214.02407519999997,
+        "min_ms": 171.24379199999998,
+        "max_ms": 216.33225,
+        "sample_stddev_ms": 19.502610748108086
+      }
+    },
+    {
+      "P": 32,
+      "N": 16,
+      "B": 4,
+      "decode_forwards": 15,
+      "kv_cat_calls": 120,
+      "prefill_logical_cache_bytes": 524288,
+      "final_logical_cache_bytes": 770048,
+      "theoretical_old_prefix_recopied_bytes": 9584640,
+      "theoretical_cat_output_bytes": 9830400,
+      "theoretical_cat_read_plus_write_bytes": 19660800,
+      "theoretical_new_kv_payload_bytes": 245760,
+      "decode_latency": {
+        "count": 5,
+        "p50_ms": 42.538708,
+        "p95_ms": 48.7712332,
+        "min_ms": 40.359625,
+        "max_ms": 50.24725,
+        "sample_stddev_ms": 3.9471674528085585
+      },
+      "metrics_from_p50": {
+        "decode_total_ms": 42.538708,
+        "ms_per_decode_token": 2.8359138666666666,
+        "aggregate_decode_tokens_per_second": 1410.480073818885,
+        "per_sequence_decode_tokens_per_second": 352.6200184547213
+      },
+      "total_latency": {
+        "count": 5,
+        "p50_ms": 48.323083,
+        "p95_ms": 55.471666,
+        "min_ms": 45.906208,
+        "max_ms": 55.965791,
+        "sample_stddev_ms": 4.434300836467945
+      }
+    },
+    {
+      "P": 256,
+      "N": 128,
+      "B": 4,
+      "decode_forwards": 127,
+      "kv_cat_calls": 1016,
+      "prefill_logical_cache_bytes": 4194304,
+      "final_logical_cache_bytes": 6275072,
+      "theoretical_old_prefix_recopied_bytes": 663764992,
+      "theoretical_cat_output_bytes": 665845760,
+      "theoretical_cat_read_plus_write_bytes": 1331691520,
+      "theoretical_new_kv_payload_bytes": 2080768,
+      "decode_latency": {
+        "count": 5,
+        "p50_ms": 348.584292,
+        "p95_ms": 357.1382502,
+        "min_ms": 334.97,
+        "max_ms": 358.804167,
+        "sample_stddev_ms": 10.03426097343607
+      },
+      "metrics_from_p50": {
+        "decode_total_ms": 348.584292,
+        "ms_per_decode_token": 2.7447582047244095,
+        "aggregate_decode_tokens_per_second": 1457.3232691735864,
+        "per_sequence_decode_tokens_per_second": 364.3308172933966
+      },
+      "total_latency": {
+        "count": 5,
+        "p50_ms": 357.798667,
+        "p95_ms": 367.975242,
+        "min_ms": 345.889,
+        "max_ms": 369.568542,
+        "sample_stddev_ms": 9.878921412237949
+      }
+    },
+    {
+      "P": 256,
+      "N": 128,
+      "B": 1,
+      "decode_forwards": 127,
+      "kv_cat_calls": 1016,
+      "prefill_logical_cache_bytes": 1048576,
+      "final_logical_cache_bytes": 1568768,
+      "theoretical_old_prefix_recopied_bytes": 165941248,
+      "theoretical_cat_output_bytes": 166461440,
+      "theoretical_cat_read_plus_write_bytes": 332922880,
+      "theoretical_new_kv_payload_bytes": 520192,
+      "decode_latency": {
+        "count": 5,
+        "p50_ms": 333.773583,
+        "p95_ms": 382.3101834,
+        "min_ms": 324.30825,
+        "max_ms": 390.64125,
+        "sample_stddev_ms": 26.57364489275272
+      },
+      "metrics_from_p50": {
+        "decode_total_ms": 333.773583,
+        "ms_per_decode_token": 2.6281384488188975,
+        "aggregate_decode_tokens_per_second": 380.4974583623654,
+        "per_sequence_decode_tokens_per_second": 380.4974583623654
+      },
+      "total_latency": {
+        "count": 5,
+        "p50_ms": 339.440708,
+        "p95_ms": 388.6011246,
+        "min_ms": 330.07070899999997,
+        "max_ms": 396.449291,
+        "sample_stddev_ms": 27.0427823053754
+      }
+    },
+    {
+      "P": 128,
+      "N": 16,
+      "B": 1,
+      "decode_forwards": 15,
+      "kv_cat_calls": 120,
+      "prefill_logical_cache_bytes": 524288,
+      "final_logical_cache_bytes": 585728,
+      "theoretical_old_prefix_recopied_bytes": 8294400,
+      "theoretical_cat_output_bytes": 8355840,
+      "theoretical_cat_read_plus_write_bytes": 16711680,
+      "theoretical_new_kv_payload_bytes": 61440,
+      "decode_latency": {
+        "count": 5,
+        "p50_ms": 42.807458,
+        "p95_ms": 59.5533912,
+        "min_ms": 41.84825,
+        "max_ms": 61.120541,
+        "sample_stddev_ms": 8.652394483253941
+      },
+      "metrics_from_p50": {
+        "decode_total_ms": 42.807458,
+        "ms_per_decode_token": 2.853830533333333,
+        "aggregate_decode_tokens_per_second": 350.40623061523536,
+        "per_sequence_decode_tokens_per_second": 350.40623061523536
+      },
+      "total_latency": {
+        "count": 5,
+        "p50_ms": 48.860917,
+        "p95_ms": 66.71769979999999,
+        "min_ms": 47.45975,
+        "max_ms": 68.621083,
+        "sample_stddev_ms": 9.188284559664076
+      }
+    },
+    {
+      "P": 128,
+      "N": 16,
+      "B": 4,
+      "decode_forwards": 15,
+      "kv_cat_calls": 120,
+      "prefill_logical_cache_bytes": 2097152,
+      "final_logical_cache_bytes": 2342912,
+      "theoretical_old_prefix_recopied_bytes": 33177600,
+      "theoretical_cat_output_bytes": 33423360,
+      "theoretical_cat_read_plus_write_bytes": 66846720,
+      "theoretical_new_kv_payload_bytes": 245760,
+      "decode_latency": {
+        "count": 5,
+        "p50_ms": 42.762,
+        "p95_ms": 44.5367084,
+        "min_ms": 39.949666,
+        "max_ms": 44.599125,
+        "sample_stddev_ms": 1.9364738874319214
+      },
+      "metrics_from_p50": {
+        "decode_total_ms": 42.762,
+        "ms_per_decode_token": 2.8508,
+        "aggregate_decode_tokens_per_second": 1403.1149151115476,
+        "per_sequence_decode_tokens_per_second": 350.7787287778869
+      },
+      "total_latency": {
+        "count": 5,
+        "p50_ms": 51.39525,
+        "p95_ms": 52.270425,
+        "min_ms": 47.183291,
+        "max_ms": 52.39625,
+        "sample_stddev_ms": 2.2038432039901807
+      }
+    },
+    {
+      "P": 128,
+      "N": 128,
+      "B": 1,
+      "decode_forwards": 127,
+      "kv_cat_calls": 1016,
+      "prefill_logical_cache_bytes": 524288,
+      "final_logical_cache_bytes": 1044480,
+      "theoretical_old_prefix_recopied_bytes": 99356672,
+      "theoretical_cat_output_bytes": 99876864,
+      "theoretical_cat_read_plus_write_bytes": 199753728,
+      "theoretical_new_kv_payload_bytes": 520192,
+      "decode_latency": {
+        "count": 5,
+        "p50_ms": 344.202375,
+        "p95_ms": 405.68083379999996,
+        "min_ms": 326.359333,
+        "max_ms": 415.016459,
+        "sample_stddev_ms": 36.55288530065887
+      },
+      "metrics_from_p50": {
+        "decode_total_ms": 344.202375,
+        "ms_per_decode_token": 2.7102549212598426,
+        "aggregate_decode_tokens_per_second": 368.968982273873,
+        "per_sequence_decode_tokens_per_second": 368.968982273873
+      },
+      "total_latency": {
+        "count": 5,
+        "p50_ms": 350.84529200000003,
+        "p95_ms": 411.456892,
+        "min_ms": 332.130333,
+        "max_ms": 420.775584,
+        "sample_stddev_ms": 36.41239565508467
+      }
+    }
+  ]
+}

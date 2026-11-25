@@ -182,6 +182,12 @@ and detailed findings.
 See [Inference Systems Notes](docs/inference.md) for autoregressive decoding, KV caching,
 RoPE offsets, prefill/decode behavior, and batching trade-offs.
 
+See [KV-cache growth baseline](docs/cache_growth.md) and the
+[preallocated KV-cache report](docs/preallocated_cache.md) for the Phase 4A/4B
+experiments. Removing repeated historical cache copying did not reliably improve
+MPS decode latency; `torch.cat` remains the default, and preallocation remains
+an explicit experimental option.
+
 Benchmark commands:
 
 ```bash

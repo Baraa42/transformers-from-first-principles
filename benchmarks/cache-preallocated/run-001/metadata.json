@@ -1,0 +1,171 @@
+{
+  "schema_version": 1,
+  "created_at_utc": "2026-11-25T12:30:20.687354+00:00",
+  "experiment": "Phase 4B paired preallocated cache",
+  "config": {
+    "prompt_lengths": [
+      32,
+      128,
+      256
+    ],
+    "generated_lengths": [
+      16,
+      64,
+      128
+    ],
+    "batch_sizes": [
+      1,
+      4
+    ],
+    "vocab_size": 8192,
+    "d_model": 128,
+    "n_heads": 4,
+    "d_ff": 512,
+    "n_layers": 4,
+    "repetitions": 6,
+    "warmup_sequences": 2,
+    "model_seed": 42,
+    "prompt_seed": 43,
+    "order_seed": 44
+  },
+  "device": "mps",
+  "precision": "fp32",
+  "pytorch": "2.14.0",
+  "python": "3.12.15",
+  "platform": "macOS-26.5.2-arm64-arm-64bit",
+  "git_revision": "7dbc19d0dfa690505c7244edf91e747474059ba8",
+  "git_status": "M src/transformers_from_scratch/generation.py\n M src/transformers_from_scratch/model.py\n?? docs/cache_growth.md\n?? docs/preallocated_cache.md\n?? scripts/benchmark_cache_growth.py\n?? scripts/benchmark_preallocated_cache.py\n?? src/transformers_from_scratch/preallocated_cache.py\n?? tests/test_cache_growth_benchmark.py\n?? tests/test_preallocated_cache.py\n?? tests/test_preallocated_cache_benchmark.py",
+  "torch_threads": 6,
+  "pytorch_git": "08187d9e0fba026dc8217405802ab5381dc88d90",
+  "hardware_model": "Mac17,8",
+  "unified_memory_bytes": "51539607552",
+  "backend_environment": {
+    "PYTORCH_ENABLE_MPS_FALLBACK": null,
+    "PYTORCH_MPS_FAST_MATH": null,
+    "PYTORCH_MPS_PREFER_METAL": null
+  },
+  "initial_weights_sha256": "01411e013b5fa56afafbeff12c1fad5c04eeaefdf067f2cfd9afc7c8025e0bff",
+  "prompt_sha256": {
+    "P32_B1": "9d684ad8cad43d41e7bdd9d66921c2cbcc05a76cf5f93a4bf5ce9f52f1a49a60",
+    "P32_B4": "310b43957bfb3c203993f55d5eb39c8c9d06563ee49f942e8501a5eb890506ac",
+    "P128_B1": "4b688ee450545a564c26c5f0817a1e1da7a1c2ad6cf15e6e4d4bc6cb3b074c40",
+    "P128_B4": "93fc06364de03834c65723ca46c4987826abf8a41014eb0264f370af391dc0bc",
+    "P256_B1": "40204fb21fd0441cc4576b82832ac6c6bb8c130bd74627f358113607ae86db84",
+    "P256_B4": "86bfcd442b5096300738583837306a578b1185d5db009570a71a1ccda4c6652d"
+  },
+  "source_sha256": {
+    "scripts/benchmark_preallocated_cache.py": "a7e9524bb726eb8b1dccb6bce71965e92d7dc53a388e4e597a69e9666565a39a",
+    "scripts/benchmark_cache_growth.py": "0804495b2756ba26bef1a0bb8ac059a1ab342b1729bf075bea065346f01fe5cd",
+    "src/transformers_from_scratch/attention.py": "b1ce921edd1399a7972c55214e9a563ad0dbd2f0db74e51a8663691adf55aae3",
+    "src/transformers_from_scratch/generation.py": "d0bcfc14f4110dda579c299eeb5ec9a3158a64387a509836ddaba2e4e38abb77",
+    "src/transformers_from_scratch/serving.py": "fbb3f0c02d0f00f7191e329258783803c33e48057a1afed48fa1a29676e47d20",
+    "src/transformers_from_scratch/inference_benchmarking.py": "0ff5786f4580d32d0ead35e9eba805b1ab12e2d8589b1396f353f0a9f70633e6",
+    "src/transformers_from_scratch/__init__.py": "895714eb52463ff3437b4d240f4af4c93e3ae8074e68a3fd7ff917607a9c4bcc",
+    "src/transformers_from_scratch/preallocated_cache.py": "11a9cc132d31eb864d940911c1076e407f8641131e23fdfa2490f3ba74a19308",
+    "src/transformers_from_scratch/model.py": "94157236095c5ea202eb69c2e89e8d4ecf8b2a373c6e6159accc2cb0babcad47",
+    "src/transformers_from_scratch/rope.py": "e2a9ba80a515a61ec5167ab3b932321a33463f5529467b6f97e588a7623aae98",
+    "src/transformers_from_scratch/profiler_tools.py": "7f5b71cfbc18e16fd33fe01df7205998c8ff3fd13a5c7cc588698671d2a37ff9",
+    "src/transformers_from_scratch/layers.py": "1ed01fc91ef213a65c6b251d581084b6e69f806b7ad7191173add2c421cf93b5",
+    "src/transformers_from_scratch/training.py": "d72ff6cb70285f9f676e2f63ceb3ebcf0ecd4fc1dd6b6f8cb6795a9f2bb97612",
+    "src/transformers_from_scratch/data.py": "2973ae01cc915569fe051e56f8f92acf2063edd3a320fcf77b25cad8c2e8c93c",
+    "src/transformers_from_scratch/profiling.py": "9613640a73bb6eaa6f12bc95ef47594f0b0552a94d9b9c9bb5dec604083fc2bf",
+    "src/transformers_from_scratch/benchmarking.py": "1108960596e006db00dbab24ae5cf600615397b316fa451bb2fe077204cc28d9",
+    "src/transformers_from_scratch/checkpointing.py": "b52b8022ce00974c38f583af70832c13f5f8f82226566d23bb045f10d59373bc"
+  },
+  "execution_order_P_N_B": [
+    [
+      32,
+      128,
+      1
+    ],
+    [
+      256,
+      64,
+      4
+    ],
+    [
+      32,
+      64,
+      4
+    ],
+    [
+      32,
+      64,
+      1
+    ],
+    [
+      32,
+      128,
+      4
+    ],
+    [
+      256,
+      16,
+      4
+    ],
+    [
+      256,
+      64,
+      1
+    ],
+    [
+      32,
+      16,
+      1
+    ],
+    [
+      128,
+      64,
+      4
+    ],
+    [
+      128,
+      128,
+      4
+    ],
+    [
+      256,
+      16,
+      1
+    ],
+    [
+      128,
+      64,
+      1
+    ],
+    [
+      32,
+      16,
+      4
+    ],
+    [
+      256,
+      128,
+      4
+    ],
+    [
+      256,
+      128,
+      1
+    ],
+    [
+      128,
+      16,
+      1
+    ],
+    [
+      128,
+      16,
+      4
+    ],
+    [
+      128,
+      128,
+      1
+    ]
+  ],
+  "timing": "Sync before/after prefill and entire decode block; allocation inside prefill; diagnostics and CPU reads outside timers; no per-token sync",
+  "decode_denominator": "N-1; prefill selects first token; last token is not forwarded",
+  "warmup": "Separate full fresh requests for each mode/workload, excluded from samples",
+  "overhead": "Preallocated: 2L empty buffers, 2L prefill copies, 2L slice writes/decode; valid-prefix views and all-layer validation each decode. Cat: 2L cats/decode. Both include growing output-ID cat and argmax. Kernel/allocation events and physical traffic are not profiled; boundary memory is not peak memory."
+}

@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "experiment": "Sequential torch.cat KV-cache growth baseline",
+  "created_at_utc": "2026-11-25T11:14:39.876475+00:00",
+  "config": {
+    "prompt_lengths": [
+      32,
+      128,
+      256
+    ],
+    "generated_lengths": [
+      16,
+      64,
+      128
+    ],
+    "batch_sizes": [
+      1,
+      4
+    ],
+    "vocab_size": 8192,
+    "d_model": 128,
+    "n_heads": 4,
+    "d_ff": 512,
+    "n_layers": 4,
+    "repetitions": 5,
+    "warmup_sequences": 2,
+    "model_seed": 42,
+    "prompt_seed": 43,
+    "order_seed": 44
+  },
+  "device": "mps",
+  "precision": "fp32",
+  "python": "3.12.15",
+  "pytorch": "2.14.0",
+  "pytorch_git": "08187d9e0fba026dc8217405802ab5381dc88d90",
+  "os": "macOS-26.5.2-arm64-arm-64bit",
+  "architecture": "arm64",
+  "hardware_model": "Mac17,8",
+  "cpu_model": "Apple M5 Pro",
+  "unified_memory_bytes": "51539607552",
+  "torch_threads": 6,
+  "git_revision": "7dbc19d0dfa690505c7244edf91e747474059ba8",
+  "git_status": "?? docs/cache_growth.md\n?? scripts/benchmark_cache_growth.py\n?? tests/test_cache_growth_benchmark.py",
+  "source_sha256": {
+    "scripts/benchmark_cache_growth.py": "0804495b2756ba26bef1a0bb8ac059a1ab342b1729bf075bea065346f01fe5cd",
+    "src/transformers_from_scratch/attention.py": "b1ce921edd1399a7972c55214e9a563ad0dbd2f0db74e51a8663691adf55aae3",
+    "src/transformers_from_scratch/model.py": "59823f682c2d2c1cc2c483f1bb5c5c072a22f37b00103fcf585eb364508c4859",
+    "src/transformers_from_scratch/generation.py": "32d1d101134195b42382daba6c7f6d1b984c703a2b8c0756e1dd76471b702588",
+    "src/transformers_from_scratch/rope.py": "e2a9ba80a515a61ec5167ab3b932321a33463f5529467b6f97e588a7623aae98",
+    "src/transformers_from_scratch/layers.py": "1ed01fc91ef213a65c6b251d581084b6e69f806b7ad7191173add2c421cf93b5",
+    "src/transformers_from_scratch/inference_benchmarking.py": "0ff5786f4580d32d0ead35e9eba805b1ab12e2d8589b1396f353f0a9f70633e6"
+  },
+  "initial_weights_sha256": "8431ed2e069e5668d7f81b3c28a67026744a3b3ee7f2ea6a77ca74e6aa7c3a80",
+  "prompt_sha256": {
+    "P32_B1": "9d684ad8cad43d41e7bdd9d66921c2cbcc05a76cf5f93a4bf5ce9f52f1a49a60",
+    "P32_B4": "310b43957bfb3c203993f55d5eb39c8c9d06563ee49f942e8501a5eb890506ac",
+    "P128_B1": "4b688ee450545a564c26c5f0817a1e1da7a1c2ad6cf15e6e4d4bc6cb3b074c40",
+    "P128_B4": "93fc06364de03834c65723ca46c4987826abf8a41014eb0264f370af391dc0bc",
+    "P256_B1": "40204fb21fd0441cc4576b82832ac6c6bb8c130bd74627f358113607ae86db84",
+    "P256_B4": "86bfcd442b5096300738583837306a578b1185d5db009570a71a1ccda4c6652d"
+  },
+  "backend_environment": {
+    "PYTORCH_ENABLE_MPS_FALLBACK": "0",
+    "PYTORCH_MPS_FAST_MATH": "0",
+    "PYTORCH_MPS_PREFER_METAL": null
+  },
+  "deterministic_algorithms": false,
+  "execution_order_P_N_B": [
+    [
+      32,
+      128,
+      1
+    ],
+    [
+      256,
+      64,
+      4
+    ],
+    [
+      32,
+      64,
+      4
+    ],
+    [
+      32,
+      64,
+      1
+    ],
+    [
+      32,
+      128,
+      4
+    ],
+    [
+      256,
+      16,
+      4
+    ],
+    [
+      256,
+      64,
+      1
+    ],
+    [
+      32,
+      16,
+      1
+    ],
+    [
+      128,
+      64,
+      4
+    ],
+    [
+      128,
+      128,
+      4
+    ],
+    [
+      256,
+      16,
+      1
+    ],
+    [
+      128,
+      64,
+      1
+    ],
+    [
+      32,
+      16,
+      4
+    ],
+    [
+      256,
+      128,
+      4
+    ],
+    [
+      256,
+      128,
+      1
+    ],
+    [
+      128,
+      16,
+      1
+    ],
+    [
+      128,
+      16,
+      4
+    ],
+    [
+      128,
+      128,
+      1
+    ]
+  ],
+  "timing": "perf_counter_ns; synchronize before/after prefill and entire decode loop; no per-token synchronization; diagnostic reads outside timers",
+  "decode_denominator": "N-1 forwards; prefill selects first of N generated tokens",
+  "warmup": "full sequential generations per workload, excluded from samples",
+  "memory_limitations": "Boundary counters and storage capacity only; no physical peak, allocation events, or directly measured cat copy costs"
+}

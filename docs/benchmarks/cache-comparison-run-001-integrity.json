@@ -1,0 +1,72 @@
+{
+  "artifact_sha256": {
+    "benchmarks/cache-growth/run-001/correctness.json": "2de32f31a7ed2d9c2f0a8fe8eaca36ef9f950e4464fe520cabce55e845934a23",
+    "benchmarks/cache-growth/run-001/metadata.json": "6c5f9e1a8e095f5705c967220d958c24496ac5f8042a4a559e91e0f6da55b1f2",
+    "benchmarks/cache-growth/run-001/samples.csv": "ab23fc30561e3802c84be7d947d9ec336f728784a6753b8b68ce000173524fb0",
+    "benchmarks/cache-growth/run-001/summary.json": "d8ac3715c9a3e50e71f3816a7b731a6cdf276e1788701a9f83b22cb886009eba",
+    "benchmarks/cache-preallocated/run-001/correctness.json": "fd29623810bf3f0e8dbefadc5ce2a1442408fa95be37af73f6fb94282be4af0d",
+    "benchmarks/cache-preallocated/run-001/metadata.json": "0c91276740f0306d72bb7714db5f7304c8eeb6be73251a98864250077609d581",
+    "benchmarks/cache-preallocated/run-001/samples.csv": "be52da43364d04665bab96afe83128002b3ef022360c8629253283db192fb467",
+    "benchmarks/cache-preallocated/run-001/summary.json": "9f12c9198ec5d5df2deb0b30b4a18f3b8f9a16e6fef2a0a9dd02251aef247979"
+  },
+  "source_hash_verification": {
+    "cache-growth": {
+      "scripts/benchmark_cache_growth.py": "matches current source",
+      "src/transformers_from_scratch/attention.py": "matches current source",
+      "src/transformers_from_scratch/model.py": "matches recorded Git revision; current source changed for Phase 4B",
+      "src/transformers_from_scratch/generation.py": "matches recorded Git revision; current source changed for Phase 4B",
+      "src/transformers_from_scratch/rope.py": "matches current source",
+      "src/transformers_from_scratch/layers.py": "matches current source",
+      "src/transformers_from_scratch/inference_benchmarking.py": "matches current source"
+    },
+    "cache-preallocated": {
+      "scripts/benchmark_preallocated_cache.py": "matches current source",
+      "scripts/benchmark_cache_growth.py": "matches current source",
+      "src/transformers_from_scratch/attention.py": "matches current source",
+      "src/transformers_from_scratch/generation.py": "matches current source",
+      "src/transformers_from_scratch/serving.py": "matches current source",
+      "src/transformers_from_scratch/inference_benchmarking.py": "matches current source",
+      "src/transformers_from_scratch/__init__.py": "matches current source",
+      "src/transformers_from_scratch/preallocated_cache.py": "matches current source",
+      "src/transformers_from_scratch/model.py": "matches current source",
+      "src/transformers_from_scratch/rope.py": "matches current source",
+      "src/transformers_from_scratch/profiler_tools.py": "matches current source",
+      "src/transformers_from_scratch/layers.py": "matches current source",
+      "src/transformers_from_scratch/training.py": "matches current source",
+      "src/transformers_from_scratch/data.py": "matches current source",
+      "src/transformers_from_scratch/profiling.py": "matches current source",
+      "src/transformers_from_scratch/benchmarking.py": "matches current source",
+      "src/transformers_from_scratch/checkpointing.py": "matches current source"
+    }
+  },
+  "workloads": 18,
+  "measured_executions": 216,
+  "matched_pairs": 108,
+  "max_abs_logit_difference": 0,
+  "median_paired_decode_speedup": 1.0123230826824197,
+  "median_workload_paired_decode_speedup": 1.003128862815275,
+  "preallocated_decode_wins": 60,
+  "batch_median_paired_decode_speedup": {
+    "1": 0.9861185154110392,
+    "4": 1.0206095812855063
+  },
+  "paired_decode_speedup_min": 0.6515836118022484,
+  "paired_decode_speedup_max": 1.586886383894002,
+  "backend_environment": {
+    "PYTORCH_ENABLE_MPS_FALLBACK": null,
+    "PYTORCH_MPS_FAST_MATH": null,
+    "PYTORCH_MPS_PREFER_METAL": null
+  },
+  "additional_verification": {
+    "initial_weights_sha256": "Both runs reproduced from recorded model seed and hash algorithm",
+    "prompt_sha256": "All six prompts reproduced for each run",
+    "phase4a": "18 reference checks; 90 instrumented checks; 90 CSV rows; decode medians verified",
+    "phase4b": "All latency statistics, paired distributions, throughput, ordering, logical/reserved sizes and copy accounting verified",
+    "scope": "Existing raw evidence audited without new benchmark executions",
+    "backend_environment_phase4a": {
+      "PYTORCH_ENABLE_MPS_FALLBACK": "0",
+      "PYTORCH_MPS_FAST_MATH": "0",
+      "PYTORCH_MPS_PREFER_METAL": null
+    }
+  }
+}

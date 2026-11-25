@@ -5,6 +5,7 @@ from torch import nn
 
 from .attention import KVCache
 from .layers import DecoderBlock
+from .preallocated_cache import PreallocatedKVCache, forward_preallocated
 
 ModelKVCache = tuple[KVCache, ...]
 
@@ -33,14 +34,31 @@ class TinyDecoderLM(nn.Module):
         token_ids: torch.Tensor,
         *,
         use_cache: bool = False,
-        kv_cache: ModelKVCache | None = None,
-    ) -> torch.Tensor | tuple[torch.Tensor, ModelKVCache]:
+        kv_cache: ModelKVCache | PreallocatedKVCache | None = None,
+        cache_mode: str = "cat",
+        cache_capacity: int | None = None,
+    ) -> torch.Tensor | tuple[torch.Tensor, ModelKVCache | PreallocatedKVCache]:
         """Map IDs ``(B, n)`` to raw vocabulary logits ``(B, n, V)``.
 
         Embedding lookup selects learned rows from a ``(V, d_model)`` matrix,
         then blocks/final norm preserve ``(B, n, d_model)``. No softmax is
         applied because loss and sampling are deliberately deferred.
+
+        ``cache_mode="preallocated"`` opts into request-owned in-place storage and
+        requires inference_mode/no_grad. Supply ``cache_capacity`` at prefill;
+        pass the returned cache handle and the same mode at each decode. Old
+        handles are invalidated by append, so independent branches need fresh
+        prefill. The default ``cat`` path retains its existing behavior.
         """
+        if cache_mode not in ("cat", "preallocated"):
+            raise ValueError("cache_mode must be cat or preallocated")
+        if cache_mode == "preallocated":
+            if not use_cache:
+                raise ValueError("preallocated mode requires use_cache=True")
+            return forward_preallocated(self, token_ids, kv_cache, cache_capacity)
+        if cache_capacity is not None or isinstance(kv_cache, PreallocatedKVCache):
+            raise ValueError("preallocated cache/capacity requires cache_mode='preallocated'")
+
         if token_ids.ndim != 2:
             raise ValueError(f"Expected token IDs (B, n), got {tuple(token_ids.shape)}")
         if kv_cache is not None and not use_cache:
