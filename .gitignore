@@ -34,3 +34,6 @@ wandb/
 *.pt
 *.pth
 *.ckpt
+
+# macOS
+.DS_Store
