@@ -5,6 +5,11 @@ measured approximately **11% lower whole-step latency**, not a direct reproducti
 historical 19.1% figure. See the [training optimization report](training_optimizations.md)
 for the balanced confirmatory experiment, raw timings, source hashes, and limitations.
 
+Precision/scaling logs remain local under `benchmarks/precision/` and
+`benchmarks/scaling/`. Earlier inference tables below are historical documented
+observations without retained per-repetition raw output; they are not the later
+[paired growing-cache experiment](preallocated_cache.md).
+
 These results are empirical measurements for one specific environment and workload. They
 are not universal claims about FP16, BF16, PyTorch, or Apple MPS.
 
@@ -31,7 +36,8 @@ median_tokens_per_sec = tokens_per_step / median_step_seconds
 Synchronized profiling intentionally perturbs normal asynchronous execution. These timings
 are useful for comparisons and decomposition, not as peak-throughput measurements.
 
-Commands used to reproduce the benchmark families:
+Commands used to reproduce the benchmark families (these legacy runners write fixed
+local log paths; use a separate checkout to preserve existing local logs):
 
 ```bash
 poetry run python scripts/benchmark_precision.py
@@ -283,8 +289,10 @@ wall time:       3.431 -> 2.977 s   (~13.2% reduction)
 
 Optimizer cost was a substantial fixed overhead for this tiny model, and fused AdamW
 materially reduced it. Other major components remained broadly similar. Identical logged
-losses showed that training behavior was preserved, although not every residual
-run-to-run difference should be attributed to AdamW alone.
+losses were a limited observational check, not proof of optimizer arithmetic or long-horizon
+equivalence. The later [controlled report](training_optimizations.md)
+checks arithmetic independently; residual timing differences cannot all be attributed
+to AdamW alone.
 
 ### Deferred host scalar reads
 

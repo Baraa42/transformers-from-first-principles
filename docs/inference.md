@@ -211,6 +211,20 @@ T=512 -> 2.000 MiB
 KV memory is linear in the number of layers, batch size, context length, and model width.
 Caching trades this persistent memory for less repeated decode computation.
 
+## Historical diagnostic evidence
+
+The timing tables below retain earlier documented observations. Their original
+per-repetition output and exact session environment were not archived here, so those
+numbers cannot be independently reconstructed from retained raw timings. The current
+scripts remain available, but the fixed-cache block measurements are not realistic
+growing-sequence or end-to-end serving measurements. The later
+[cache-growth baseline](cache_growth.md) and [paired preallocation experiment](preallocated_cache.md)
+include committed raw evidence and explicit per-run environments.
+
+The cache description above covers the default `torch.cat` path. The experimental
+preallocated path retains the same RoPE and causal-prefix invariants while exposing
+separate logical length/capacity and in-place request-owned buffers.
+
 ## Correctness and batch-1 performance
 
 Cached decoding was validated against the uncached reference by requiring exact equality
@@ -225,9 +239,8 @@ decode speedups were:
 |    256 |         0.980x |
 
 For this tiny batch-1 MPS workload, KV caching did not materially improve wall-clock
-latency. This does not mean KV caching is ineffective generally. Here, the reduced
-sequence-dependent compute remained small relative to fixed and backend overhead for a
-very small model and workload. The benchmark does not isolate a more specific bottleneck.
+latency. This does not mean KV caching is ineffective generally. The result is consistent with fixed/backend overhead being material for this very
+small workload, but the benchmark does not isolate or quantify that explanation.
 
 ## Prefill and cached-decode measurements
 
@@ -278,8 +291,8 @@ per-sequence tok/s = 1 / step_time_seconds
 
 Batch size increased 16x while decode-step latency remained approximately 0.86–0.88 ms.
 Aggregate throughput scaled nearly linearly, per-sequence throughput stayed around 1.1k
-tok/s, and KV memory grew linearly. For this workload, that is strong evidence that
-batch-1 decode underutilized the MPS device. The exact scaling is specific to this model,
+tok/s, and KV memory grew linearly. For this workload, that is consistent with batch-1 decode underutilizing the device;
+no direct device-utilization counters were recorded. The exact scaling is specific to this model,
 backend, and benchmark setup.
 
 ## Static versus continuous batching

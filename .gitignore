@@ -17,6 +17,12 @@ dist/
 .venv/
 poetry.toml
 
+# Local credentials
+.env
+.env.*
+!.env.example
+!.env.template
+
 # Editors and notebooks
 .vscode/
 .idea/

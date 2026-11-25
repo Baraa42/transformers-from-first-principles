@@ -1,25 +1,31 @@
 # KV-cache growth: baseline and instrumentation
 
 Phase 4A measures realistic sequential decoding with the existing `torch.cat` cache.
-It does not implement preallocation or establish a measured cache-copy bottleneck. No MPS
-results have been collected for this experiment in the sandbox.
+It does not implement preallocation or establish a measured cache-copy bottleneck.
+The completed MPS [run-001 summary](../benchmarks/cache-growth/run-001/summary.json)
+contains 18 workloads and 90 measured sequences, with all cached/uncached token checks
+passing. The largest case (`P=256,N=128,B=4`) had a median decode latency of 2.745 ms/token,
+663,764,992 theoretical old-prefix bytes recopied and 6,275,072 final logical cache bytes.
+Observed latency was noisy rather than monotonically related to theoretical copy volume.
+The subsequent [paired preallocation report](preallocated_cache.md) records the neutral
+Phase 4B result; the two phases are separate sessions, not a direct cross-run timing ratio.
 
 ## Implementation audit
 
 - [SelfAttention.forward](../src/transformers_from_scratch/attention.py) projects Q/K/V,
   reshapes to `(B,H,T,d_head)`, rotates Q/K with RoPE, and stores rotated K and unrotated V.
   With a cache, input must be one token; the previous cache length is its RoPE offset.
-  Lines 90–91 concatenate both old prefixes and new K/V along sequence dimension 2.
+  The reference path concatenates both old prefixes and new K/V along sequence dimension 2.
   Each cat creates a fresh output containing the whole concatenation; there is no spare
   capacity or in-place append. Old prefix tensors are not mutated. There are two cat
   operations per layer per decode forward. The allocator may reuse released blocks:
   these operations do not prove that each cat requires a fresh operating-system allocation.
 - [TinyDecoderLM.forward](../src/transformers_from_scratch/model.py) validates matching
-  cache lengths and passes one tuple to each layer (lines 57–88). The previous model cache
+  cache lengths and passes one tuple to each layer. The previous model cache
   remains live during its forward while replacement layer caches are constructed. Temporary
   projections, attention scores, logits, and old/new storage coexist; final logical cache
   size is therefore neither instantaneous live memory nor physical peak allocation.
-- [generate_cached](../src/transformers_from_scratch/generation.py), lines 150–167, prefills
+- [generate_cached](../src/transformers_from_scratch/generation.py) prefills
   once, selects token one, then feeds back one token at a time. Generating `N` tokens
   requires `N-1` growth forwards. The final token is returned without entering the cache.
   `generate_greedy_cached` delegates here; `generate_greedy` is the uncached argmax reference.
@@ -27,8 +33,8 @@ results have been collected for this experiment in the sandbox.
   benchmark uses greedy decoding with no EOS stopping.
 - [benchmark_cached_greedy](../src/transformers_from_scratch/inference_benchmarking.py)
   already measures growing sequential decode for batch one. The existing prefill/decode
-  and static-batching helpers instead repeat one forward from an unchanged baseline cache
-  (lines 712–723 and 786–793), so they do not measure a sustained growth trajectory.
+  and static-batching helpers instead repeat one forward from an unchanged baseline cache,
+  so they do not measure a sustained growth trajectory.
   Existing [cached/uncached](../scripts/benchmark_cached_inference.py) and
   [batching](../scripts/benchmark_decode_batching.py) scripts load a checkpoint/tokenizer.
   The shared [loader](../scripts/benchmark_inference.py) uses unrestricted checkpoint
@@ -121,7 +127,7 @@ cat duration are measured. Boundary counters include model/temporary/allocator s
 cannot identify transient peaks. This is a single-process baseline; order randomization
 and warmups do not eliminate thermal or stabilization effects.
 
-## Local MPS command (not executed here)
+## Reproduction command
 
 From the repository root in normal macOS Terminal:
 
@@ -130,15 +136,15 @@ HF_HUB_OFFLINE=1 HF_DATASETS_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
 PYTORCH_ENABLE_MPS_FALLBACK=0 PYTORCH_MPS_FAST_MATH=0 \
 poetry run python -B scripts/benchmark_cache_growth.py \
   --device mps --repetitions 5 --warmup-sequences 2 \
-  --output benchmarks/cache-growth/run-001
+  --output benchmarks/cache-growth/reproduce-final
 ```
 
 The command rejects unavailable MPS and enabled CPU fallback, probes an actual MPS
 operation and refuses to overwrite an existing output directory. Explicit CPU mode exists
 for tiny verification only; CPU results are labeled as such. No full MPS benchmark was run
-during implementation.
+during the final documentation pass.
 
-## Evidence required before preallocation
+## Interpreting the baseline
 
 First inspect exact-token checks, raw sequential latencies, repetition variability, scaling
 with `P/N/B`, final cache sizes and available memory diagnostics. Confirm warmup stability
@@ -146,9 +152,10 @@ and repeat selected workloads in a separate session if needed. Increasing latenc
 also come from longer attention, dispatch, argmax and token-ID growth; a correlation with
 theoretical copied bytes does not isolate cat overhead.
 
-A later controlled cat/preallocated comparison must preserve tokens, RoPE offsets, layer
-association, precision, weights, prompts, timing boundaries and output-ID bookkeeping.
-Only an independently verified A/B measurement can establish a material latency improvement.
+The completed [cat/preallocated comparison](preallocated_cache.md) preserves tokens, RoPE
+offsets, layer association, precision, weights, prompts, timing boundaries and output-ID
+bookkeeping.
+Its paired evidence does not show a reliable MPS decode latency improvement.
 An optional separate allocation trace or isolated copy diagnostic can support attribution,
 but its instrumentation must stay outside the authoritative latency experiment. Do not
 infer a speedup or percentage of time spent copying from this baseline alone.

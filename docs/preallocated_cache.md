@@ -122,9 +122,9 @@ between historical Phase 4A medians and Phase 4B medians.
 The [integrity record](benchmarks/cache-comparison-run-001-integrity.json) records
 SHA-256 checksums of all eight original Phase 4A/4B run files and the independently
 recomputed numerical aggregates. The original run directories are retained
-unchanged. Raw artifacts currently live under the Git-ignored `benchmarks/`
-tree; include those eight exact files explicitly if committing the report so its
-raw-evidence links remain available in a fresh checkout.
+unchanged. These eight raw run files are explicitly tracked under `benchmarks/`,
+so the evidence links resolve in a fresh checkout. The broad ignore rule still
+excludes other newly generated benchmark output by default.
 
 All 17 Phase 4B recorded source hashes match the current source files. Of the
 seven Phase 4A source hashes, five match current files; `model.py` and
@@ -146,10 +146,10 @@ of historical authenticity or a substitute for a second benchmark session.
 
 ```python
 with torch.inference_mode():
-    logits, cache = model(prompt, use_cache=True, cache_mode="preallocated",
-                          cache_capacity=P + N - 1)
-    logits, cache = model(next_token, use_cache=True, cache_mode="preallocated",
-                          kv_cache=cache)
+    logits, cache = model(
+        prompt, use_cache=True, cache_mode="preallocated", cache_capacity=P + N - 1
+    )
+    logits, cache = model(next_token, use_cache=True, cache_mode="preallocated", kv_cache=cache)
 ```
 
 Generation allocates for `P + N - 1`, because prefill selects the first output

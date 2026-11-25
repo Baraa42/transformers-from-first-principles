@@ -1,246 +1,145 @@
 # Transformers from First Principles
 
-A minimal, research-friendly project for building a decoder-only Transformer manually in PyTorch. The aim is to understand the architecture and its performance characteristics—not to wrap a high-level Transformer library. Hugging Face Transformer implementations and high-level Transformer libraries are intentionally out of scope.
+A small decoder-only language model implemented directly in PyTorch, with a TinyStories
+training pipeline and experiments on training and inference performance. The project
+connects model mathematics, numerical correctness, and systems measurement: implement the
+operations explicitly, verify their behavior, then test whether an optimization improves
+whole-workload latency.
 
-## Roadmap
+## What was implemented
 
-### Stage 1 — Transformer from first principles
+- Manual multi-head causal attention, RoPE, pre-norm decoder blocks, SiLU MLPs, token
+  embeddings, and an untied language-model head; no high-level Transformer implementation.
+- Story-level train/validation splitting, BPE tokenization, causal windows, AdamW training,
+  gradient accumulation/clipping, checkpoint/resume, and optional FP16/BF16 mixed precision.
+- Numerical references for attention, gradients, cached logits, and optimizer arithmetic;
+  unit and integration tests for training, generation, and request-local cache state.
+- Autoregressive sampling and greedy decoding, KV caching with absolute RoPE offsets,
+  prefill/decode diagnostics, static batching, and a small [FastAPI baseline](docs/serving.md).
+- Controlled MPS training experiments and an opt-in preallocated KV cache, with raw
+  timings, correctness gates, source hashes, and documented measurement boundaries.
 
-- Token embeddings, causal attention, RoPE, decoder blocks, and LM head
-- Autoregressive loss and generation
+## Architecture and training pipeline
 
-### Stage 2 — Reproducible training
+The [main configuration](configs/tiny.yaml) uses vocabulary 8,192, width 128, four decoder
+layers, four heads, MLP width 512, and **2,888,448 parameters**. Each block applies LayerNorm
+before attention and the MLP, with residual connections around both; final normalization
+and the LM head produce raw vocabulary logits. See [architecture notes](notes/architecture.md).
 
-- TinyStories pipeline, checkpoints/resume, gradient clipping, and accumulation
+TinyStories stories → published BPE tokenizer → within-story next-token windows → shuffled
+training batches → cross-entropy → backward/gradient clipping → AdamW → checkpoint.
+The default run uses context 128, batch 16, FP32, and 2,000 optimizer steps. Training and
+validation stories are selected from disjoint ranges of the upstream training split;
+validation loss is target-token weighted. [Data details](docs/data.md) explain duplicate
+checks and the limits of split isolation. Resume restores optimizer/RNG state but does not
+restore the exact DataLoader shuffle position.
 
-### Stage 3 — Training correctness
+## Key experimental findings
 
-- Full training batches, reshuffling epochs, and token-weighted validation
+| Experiment | Measured result | Interpretation |
+| --- | --- | --- |
+| Controlled training, FP32 Apple MPS | Confirmatory A→D whole-step latency fell from **17.881740 to 15.933313 ms**, a **10.896% reduction (1.122x speedup)**. The earlier session measured 11.865%. | Approximately 11% for this synthetic small-model workload. Deferred gradient-norm host reads were the most consistent increment; fused AdamW was less stable, and deferring loss reads added no clear incremental benefit. |
+| Preallocated versus `torch.cat` KV cache, MPS | 18 workloads, 216 measured executions, 108 matched pairs; median paired decode speedup **1.012x**, median workload-level speedup **1.003x**, and 60/108 wins. Maximum recorded logit difference: **0**. | Removing repeated historical K/V copying **did not reliably improve decode latency**. `torch.cat` remains the default; preallocation remains explicitly experimental. |
 
-### Stage 4 — Mixed precision
+The training result shows why synchronization and optimizer overhead deserve measurement.
+The neutral cache result shows why reducing theoretical data movement does not establish a
+wall-clock benefit. Neither result establishes model-quality gains, production throughput,
+or hardware-general performance.
 
-- `precision: fp32 | fp16 | bf16` in the training config
-- FP16 uses GradScaler; BF16 and FP16 availability is verified on the selected backend
+Read the [controlled training report](docs/training_optimizations.md) and
+[raw confirmatory timings](docs/benchmarks/training-optimizations/run-003/steps.csv), plus the
+[KV-cache report](docs/preallocated_cache.md) and
+[raw paired timings](benchmarks/cache-preallocated/run-001/samples.csv).
+The older 19.1% training figure is a historical observation with incomplete evidence,
+not the controlled result. Earlier fixed-cache batching measurements are also distinct from
+the fresh-request, growing-cache experiment. [Performance notes](docs/performance.md) and
+[inference notes](docs/inference.md) retain that context.
 
-### Stage 5 — Training performance diagnostics
+## Reproducing the results
 
-- Synchronized step decomposition
-- Batch/context scaling
-- Operator-level profiling
-- Fused AdamW on Apple MPS
-- Deferred device-to-host scalar reads
-- Approximately 11% lower whole-step latency in a controlled synthetic MPS benchmark
-
-### Stage 6 — Inference systems
-
-- Baseline autoregressive decoding
-- Prefill vs decode profiling
-- KV cache from first principles
-- Cached vs uncached benchmarks
-- Batching and latency/throughput trade-offs
-
-### Later systems experiments
-
-- `torch.compile`, quantization, and serving
-
-## Model and training path
-
-```text
-Model:
-token IDs (B, T)
--> embeddings
--> decoder blocks
--> final norm
--> logits (B, T, V)
-
-Training:
-TinyStories
--> tokenizer
--> causal windows
--> DataLoader
--> model
--> cross-entropy loss
--> AdamW
-```
-
-The model returns raw logits; loss remains outside `TinyDecoderLM.forward()`.
-The current training system includes optional mixed precision and opt-in manual timing
-diagnostics. The current inference system includes KV-cached autoregressive decoding and
-static batching experiments; continuous batching and more advanced serving systems remain
-out of scope.
-
-## Setup and commands
-
-Install the project and its development tools:
+Use Python 3.12+ and Poetry, from the repository root. `poetry install` uses the committed
+lockfile and installs the package and development tools. Recorded performance runs used
+Python 3.12.15 / PyTorch 2.14.0 on Apple MPS; exact per-run environments and flags are in the
+reports. CPU tests work without MPS; accelerator-specific tests skip when unavailable.
 
 ```bash
 poetry install
+poetry run pytest -q
+poetry run ruff check src tests scripts train.py generate.py serve.py
+poetry run ruff format --check src tests scripts train.py generate.py serve.py
 ```
 
-Run commands inside Poetry's managed environment:
-
-```bash
-poetry run pytest
-poetry run ruff check .
-poetry run ruff format .
-```
-
-Check the selected backend's actual local AMP capabilities:
-
-```bash
-poetry run python scripts/check_precision.py
-```
-
-AMP support depends on both the backend and installed PyTorch version; this
-command exercises representative autocast and FP16 GradScaler operations.
-
-## Precision benchmark
-
-Run the same 300-step workload in fresh FP32, FP16, and BF16 processes:
-
-```bash
-poetry run python scripts/check_precision.py
-poetry run python scripts/benchmark_precision.py
-```
-
-Raw logs are written to `benchmarks/precision/` and remain local. Reported total
-wall time includes the training loop, validation, and checkpoint writes; model,
-tokenizer, and dataset setup are excluded.
-
-## Stage 5.1 timing diagnostics
-
-Run the first decomposed FP32 timing experiment with:
-
-```bash
-poetry run python train.py --config configs/benchmarks/profile-fp32.yaml
-```
-
-Profiling mode synchronizes around each component for diagnostic accuracy, so its
-throughput should not be compared directly with the normal precision benchmark.
-
-## Stage 5.2 batch/context scaling
-
-Run the synchronized FP32 workload matrix with:
-
-```bash
-poetry run python scripts/benchmark_scaling.py
-```
-
-This compares batch/context scaling to study MPS utilization and quadratic
-attention-cost growth. Throughput is derived as tokens per step divided by
-synchronized median step time; raw logs remain local under `benchmarks/scaling/`.
-
-## Stage 5.3 operator profiling
-
-Run the lightweight operator-level diagnostic with:
-
-```bash
-poetry run python scripts/profile_training_ops.py
-```
-
-The profiler is intended to confirm the dominant compute and synchronization patterns
-identified by manual timing. Add `--export-trace` to optionally write a Chrome trace
-under the ignored `benchmarks/profiler/` directory.
-
-## Stage 6.1 uncached inference baseline
-
-Run the deterministic uncached FP32 inference benchmark with:
-
-```bash
-poetry run python scripts/benchmark_inference.py
-```
-
-The benchmark times prefill separately, then measures the uncached decode loop as one block.
-Its first and last eight-token windows are also block-timed to avoid distortion from
-per-token MPS synchronization. It reports medians across repeated workloads and does not use
-a KV cache.
-
-## Performance findings
-
-For the measured tiny model on Apple MPS:
-
-- FP16 was slower because scaler and gradient-processing overhead dominated its savings.
-- BF16 was roughly neutral to slightly faster in steady-state training.
-- Larger batches significantly improved accelerator utilization.
-- The input pipeline was not the current bottleneck.
-- Longer contexts improved utilization through 256 tokens, while equal-token comparisons
-  began to expose the quadratic attention penalty.
-- The controlled FP32 synthetic benchmark measured approximately 11% lower whole-step
-  latency from A to D across two sessions (10.896% and 11.865%).
-- Deferring gradient-norm scalar extraction gave a consistent experiment-level improvement;
-  the fused AdamW increment was less stable and the deferred-loss increment was inconclusive.
-- The historical 19.1% figure was not directly reproduced. See the
-  [training optimization report](docs/training_optimizations.md) for raw evidence and limitations.
-
-Stage 5 training performance work is complete. Operator profiling on MPS was useful for
-identifying synchronization boundaries, but its CPU attribution is not direct device-kernel
-timing.
-
-See [Training Performance Notes](docs/performance.md) for methodology, benchmark tables,
-and detailed findings.
-
-See [Inference Systems Notes](docs/inference.md) for autoregressive decoding, KV caching,
-RoPE offsets, prefill/decode behavior, and batching trade-offs.
-
-See [KV-cache growth baseline](docs/cache_growth.md) and the
-[preallocated KV-cache report](docs/preallocated_cache.md) for the Phase 4A/4B
-experiments. Removing repeated historical cache copying did not reliably improve
-MPS decode latency; `torch.cat` remains the default, and preallocation remains
-an explicit experimental option.
-
-Benchmark commands:
-
-```bash
-poetry run python scripts/benchmark_precision.py
-poetry run python train.py --config configs/benchmarks/profile-fp32.yaml
-poetry run python scripts/benchmark_scaling.py
-poetry run python scripts/profile_training_ops.py
-```
-
-Or activate the Poetry environment for the current shell:
-
-```bash
-eval "$(poetry env activate)"
-pytest
-ruff check .
-ruff format .
-```
-
-The tiny decoder is implemented and tested in `src/transformers_from_scratch/`.
-
-The training entry point is:
+Train and generate locally; the first training run needs access to the configured Hugging
+Face dataset/tokenizer. Checkpoints are generated locally and are not distributed with Git.
+`device: auto` selects CUDA, then MPS, then CPU; reduced-precision support is checked on the
+selected backend.
 
 ```bash
 poetry run python train.py --config configs/tiny.yaml
+poetry run python train.py --config configs/tiny.yaml --resume checkpoints/step-001000.pt
+poetry run python generate.py --checkpoint checkpoints/step-002000.pt \
+  --prompt "Once upon a time" --max-new-tokens 50 --temperature 0.8 --top-k 40
 ```
 
-A local 2,000-step TinyStories checkpoint is saved under `checkpoints/` and is
-intentionally ignored by Git.
+Resume is optional and continues to the configured final global step. The generation CLI
+uses the uncached sampling reference; cached generation is available through the Python
+APIs and FastAPI baseline. Load only trusted checkpoints: the training/generation CLI
+supports legacy checkpoint deserialization. [Checkpoint evaluation](docs/final_evaluation.md)
+records a separate local checkpoint; its filename is not the default training output.
 
-## Generate from a checkpoint
-
-After training, sample from a saved checkpoint with:
+The controlled training and cache benchmarks use synthetic inputs and need no checkpoint
+or dataset. On an MPS-capable host, reproduce into **new** output directories:
 
 ```bash
-poetry run python generate.py \
-  --checkpoint checkpoints/step-002000.pt \
-  --prompt "Once upon a time" --max-new-tokens 100 --temperature 0.8 --top-k 50
+PYTORCH_ENABLE_MPS_FALLBACK=0 PYTORCH_MPS_FAST_MATH=0 \
+poetry run python scripts/benchmark_training_optimizations.py \
+  --rounds 4 --output benchmarks/training-optimizations/reproduce-final
+
+env -u PYTORCH_ENABLE_MPS_FALLBACK -u PYTORCH_MPS_FAST_MATH \
+  -u PYTORCH_MPS_PREFER_METAL PYTHONPATH=src \
+  poetry run python -m scripts.benchmark_preallocated_cache \
+  --device mps --output benchmarks/cache-preallocated/reproduce-final
 ```
 
-## Checkpoint and resume
+For the cache comparison, all three recorded backend flags were unset; inspect the
+[environment table](docs/preallocated_cache.md#environment-as-recorded) before reproducing.
+The runners refuse existing output directories. Reproduction means repeating the method,
+not guaranteeing identical timing. Detailed reports describe warmups, ordering, precision,
+correctness gates, and the exact archived training script versions.
 
-Training saves atomic periodic checkpoints in `checkpoints/`; the directory is ignored by Git.
+An earlier cached/uncached diagnostic accepts an explicitly selected checkpoint:
 
 ```bash
-poetry run python train.py --config configs/tiny.yaml
-
-poetry run python train.py \
-  --config configs/tiny.yaml \
-  --resume checkpoints/step-001000.pt
+poetry run python scripts/benchmark_cached_inference.py --device mps \
+  --checkpoint checkpoints/step-002000.pt
 ```
 
-Resume restores model weights, AdamW optimizer moments, global step, and global RNG
-state. It does not restore the active shuffled DataLoader iterator position, so
-exact bit-for-bit continuation of batch order is not guaranteed.
+This diagnostic includes contexts beyond training length; it measures systems behavior,
+not long-context quality. [Inference notes](docs/inference.md) cover prefill/decode and
+static batching; the [cache-growth report](docs/cache_growth.md) documents Phase 4A.
+Committed evidence can be inspected without rerunning any benchmark.
 
-On resume, `optimizer.load_state_dict(...)` restores AdamW parameter-group state, including the saved learning rate and weight decay. For a true resume, those checkpoint settings take precedence over newly specified YAML optimizer values.
+## Repository structure
+
+| Path | Purpose |
+| --- | --- |
+| [`src/transformers_from_scratch/`](src/transformers_from_scratch/) | Model, attention/RoPE, data, training, checkpointing, generation, and serving |
+| [`train.py`](train.py), [`generate.py`](generate.py), [`serve.py`](serve.py) | Training, sampling, and API entry points |
+| [`configs/`](configs/), [`tests/`](tests/) | Run configurations and correctness coverage |
+| [`scripts/`](scripts/) | Benchmark runners, profiler, data checks, and device diagnostics |
+| [`docs/`](docs/), [`notes/`](notes/) | Experimental reports and architecture notes |
+| [`docs/benchmarks/`](docs/benchmarks/) | Archived controlled training evidence, source snapshots, and integrity manifests |
+| [`benchmarks/cache-growth/run-001/`](benchmarks/cache-growth/run-001/), [`benchmarks/cache-preallocated/run-001/`](benchmarks/cache-preallocated/run-001/) | Explicitly tracked raw cache evidence; other generated benchmark outputs are ignored |
+
+## Limitations and future directions
+
+This is a small research implementation, not a production LLM or a production serving
+system. Measurements are specific to the recorded Apple MPS workload and sessions; sample
+counts are modest, and no statistical-significance or cross-hardware claim is made.
+Logical copy accounting is not measured physical memory traffic, and boundary memory
+counters are not peak usage. Dataset/tokenizer identifiers do not pin immutable upstream
+revisions, and short numerical checks do not establish long-horizon model quality.
+
+Continuous batching, paged/evicting caches, compilation, quantization, and larger-model or
+cross-hardware evaluation are possible future directions, not implemented or validated
+outcomes. The project’s interview overview is in [Project Summary](docs/project_summary.md).
