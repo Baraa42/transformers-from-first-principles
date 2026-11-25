@@ -97,6 +97,73 @@ def test_checkpoint_restores_rng_state(tmp_path) -> None:
     assert torch.equal(actual[2], expected[2])
 
 
+def test_new_checkpoint_loads_with_restricted_deserialization(tmp_path) -> None:
+    model, optimizer = make_model_and_optimizer()
+    train_one_step(model, optimizer)
+    path = tmp_path / "restricted.pt"
+    save_test_checkpoint(path, model, optimizer)
+
+    checkpoint = torch.load(path, map_location="cpu", weights_only=True)
+
+    assert checkpoint["step"] == 20
+    assert checkpoint["optimizer_state_dict"]["state"]
+    assert checkpoint["rng_state"]["numpy"]["dtype"] == np.dtype("uint32").str
+    assert all(isinstance(key, int) for key in checkpoint["rng_state"]["numpy"]["keys"])
+    for name, value in model.state_dict().items():
+        assert torch.equal(checkpoint["model_state_dict"][name], value)
+
+
+@pytest.mark.parametrize("historical", [False, True])
+@pytest.mark.parametrize("cached_gaussian", [False, True])
+def test_numpy_rng_round_trip_preserves_complete_state_and_draws(
+    tmp_path, historical: bool, cached_gaussian: bool
+) -> None:
+    model, optimizer = make_model_and_optimizer()
+    np.random.seed(123)
+    np.random.random_sample(7)
+    if cached_gaussian:
+        np.random.standard_normal()  # Leave the second Box-Muller value cached.
+    expected_state = np.random.get_state()
+    assert expected_state[3] == int(cached_gaussian)
+    path = tmp_path / "numpy-rng.pt"
+    save_test_checkpoint(path, model, optimizer)
+    payload = torch.load(path, map_location="cpu", weights_only=True)
+    if historical:
+        payload["rng_state"]["numpy"] = expected_state
+        torch.save(payload, path)  # Trusted historical tuple/ndarray fixture.
+
+    expected_normal = np.random.standard_normal(9)
+    expected_uniform = np.random.random_sample(9)
+    expected_integers = np.random.randint(0, 1000, size=9)
+    restored_model, restored_optimizer = make_model_and_optimizer()
+    load_test_checkpoint(path, restored_model, restored_optimizer)
+
+    actual_state = np.random.get_state()
+    assert actual_state[0] == expected_state[0]
+    assert actual_state[1].dtype == expected_state[1].dtype
+    assert np.array_equal(actual_state[1], expected_state[1])
+    assert actual_state[2:] == expected_state[2:]
+    assert np.array_equal(np.random.standard_normal(9), expected_normal)
+    assert np.array_equal(np.random.random_sample(9), expected_uniform)
+    assert np.array_equal(np.random.randint(0, 1000, size=9), expected_integers)
+
+
+def test_legacy_checkpoint_without_rng_is_still_rejected(tmp_path) -> None:
+    model, optimizer = make_model_and_optimizer()
+    path = tmp_path / "legacy.pt"
+    save_test_checkpoint(path, model, optimizer)
+    payload = torch.load(path, map_location="cpu", weights_only=True)
+    del payload["rng_state"]
+    torch.save(payload, path)
+
+    restored_model, restored_optimizer = make_model_and_optimizer()
+    before = {name: value.clone() for name, value in restored_model.state_dict().items()}
+    with pytest.raises(ValueError, match="missing: \\['rng_state'\\]"):
+        load_test_checkpoint(path, restored_model, restored_optimizer)
+    for name, value in restored_model.state_dict().items():
+        assert torch.equal(value, before[name])
+
+
 def test_resume_uses_next_global_step_through_target() -> None:
     assert list(range(20 + 1, 30 + 1)) == list(range(21, 31))
 

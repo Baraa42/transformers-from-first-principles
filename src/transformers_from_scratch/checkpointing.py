@@ -11,9 +11,18 @@ import torch
 
 def capture_rng_state() -> dict[str, Any]:
     """Capture global PRNG state; DataLoader iterator position is intentionally excluded."""
+    generator, keys, position, has_gauss, cached_gaussian = np.random.get_state()
     return {
         "python": random.getstate(),
-        "numpy": np.random.get_state(),
+        # NumPy arrays require unsupported pickle globals in weights_only=True loads.
+        "numpy": {
+            "generator": generator,
+            "keys": keys.tolist(),
+            "dtype": keys.dtype.str,
+            "position": position,
+            "has_gauss": has_gauss,
+            "cached_gaussian": cached_gaussian,
+        },
         "torch": torch.get_rng_state(),
         "cuda": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None,
         "mps": torch.mps.get_rng_state() if torch.backends.mps.is_available() else None,
@@ -23,7 +32,17 @@ def capture_rng_state() -> dict[str, Any]:
 def restore_rng_state(state: dict[str, Any]) -> None:
     """Restore global PRNG state captured by :func:`capture_rng_state`."""
     random.setstate(state["python"])
-    np.random.set_state(state["numpy"])
+    numpy_state = state["numpy"]
+    if isinstance(numpy_state, dict):
+        numpy_state = (
+            numpy_state["generator"],
+            np.array(numpy_state["keys"], dtype=numpy_state["dtype"]),
+            numpy_state["position"],
+            numpy_state["has_gauss"],
+            numpy_state["cached_gaussian"],
+        )
+    # Historical trusted checkpoints contain NumPy's original tuple/ndarray state.
+    np.random.set_state(numpy_state)
     torch.set_rng_state(state["torch"])
     cuda_state = state.get("cuda")
     if cuda_state is not None and torch.cuda.is_available():

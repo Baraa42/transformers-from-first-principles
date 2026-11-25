@@ -78,9 +78,7 @@ class ServingSettings:
     def from_environment(cls) -> ServingSettings:
         """Read optional deployment overrides while preserving useful defaults."""
         return cls(
-            checkpoint_path=Path(
-                os.environ.get("TRANSFORMER_CHECKPOINT", str(DEFAULT_CHECKPOINT))
-            ),
+            checkpoint_path=Path(os.environ.get("TRANSFORMER_CHECKPOINT", str(DEFAULT_CHECKPOINT))),
             device=os.environ.get("TRANSFORMER_DEVICE", "auto"),
         )
 

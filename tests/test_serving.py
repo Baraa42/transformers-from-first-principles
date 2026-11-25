@@ -4,9 +4,92 @@ from types import SimpleNamespace
 import pytest
 import torch
 from fastapi.testclient import TestClient
+from tokenizers import Tokenizer
+from tokenizers.models import WordLevel
+from tokenizers.pre_tokenizers import Whitespace
 
+import transformers_from_scratch.data as data
 import transformers_from_scratch.serving as serving
+from transformers_from_scratch.checkpointing import save_checkpoint
+from transformers_from_scratch.model import TinyDecoderLM
 from transformers_from_scratch.serving import ModelRuntime, ServingSettings, create_app
+
+
+@pytest.fixture
+def local_tokenizer(tmp_path, monkeypatch) -> Tokenizer:
+    tokenizer = Tokenizer(
+        WordLevel(
+            {"<unk>": 0, "Once": 1, "upon": 2, "a": 3, "time": 4, "<eos>": 5},
+            unk_token="<unk>",
+        )
+    )
+    tokenizer.pre_tokenizer = Whitespace()
+    path = tmp_path / "tokenizer.json"
+    tokenizer.save(str(path))
+
+    def local_download(*, repo_id: str, filename: str, repo_type: str) -> str:
+        assert repo_id == "test/local-tokenizer"
+        assert filename == "tinystories.BPE8192.tokenizer.json"
+        assert repo_type == "dataset"
+        return str(path)
+
+    # Exercise the real tokenizer loader, replacing only network artifact resolution.
+    monkeypatch.setattr(data, "hf_hub_download", local_download)
+    return tokenizer
+
+
+@pytest.mark.parametrize("legacy_without_rng", [False, True])
+def test_real_runtime_loads_training_and_legacy_checkpoints(
+    tmp_path, local_tokenizer, legacy_without_rng: bool
+) -> None:
+    model_config = {"d_model": 8, "n_heads": 2, "d_ff": 16, "n_layers": 1}
+    model = TinyDecoderLM(vocab_size=local_tokenizer.get_vocab_size(), **model_config)
+    model.eval()
+    path = tmp_path / "training.pt"
+    save_checkpoint(
+        path,
+        step=0,
+        model=model,
+        optimizer=torch.optim.AdamW(model.parameters()),
+        model_config=model_config,
+        vocab_size=local_tokenizer.get_vocab_size(),
+        tokenizer_repo="test/local-tokenizer",
+        config={"data": {"context_length": 16}},
+    )
+    if legacy_without_rng:
+        payload = torch.load(path, map_location="cpu", weights_only=True)
+        del payload["rng_state"]
+        del payload["scaler_state_dict"]
+        torch.save(payload, path)
+
+    # Do not inject a runtime loader: application startup must load the real checkpoint.
+    app = create_app(ServingSettings(path, "cpu"))
+    with TestClient(app) as client:
+        runtime = app.state.runtime
+        assert isinstance(runtime.model, TinyDecoderLM)
+        assert isinstance(runtime.tokenizer, Tokenizer)
+        assert not runtime.model.training
+        assert runtime.context_length == 16
+        assert runtime.vocab_size == local_tokenizer.get_vocab_size()
+        assert runtime.eos_token_id == 5
+        for name, value in model.state_dict().items():
+            assert torch.equal(runtime.model.state_dict()[name], value)
+        inputs = torch.tensor([[1, 2, 3, 4]])
+        with torch.inference_mode():
+            assert torch.equal(runtime.model(inputs), model(inputs))
+        assert client.get("/health").json()["model_loaded"] is True
+        response = client.post(
+            "/generate",
+            json={
+                "prompt": "Once upon a time",
+                "max_new_tokens": 2,
+                "do_sample": False,
+                "top_k": None,
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["prompt_tokens"] == 4
+        assert 1 <= response.json()["generated_tokens"] <= 2
 
 
 class FakeTokenizer:
